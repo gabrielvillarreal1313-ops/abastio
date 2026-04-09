@@ -54,13 +54,25 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 - **Selector de periodo en el dashboard** (mes actual, mes anterior, últimos 30 días, trimestre, año). Por ahora solo mostramos el mes más reciente con datos. Diferido a V1.
 
+## Calidad del dataset sintético
+
+- **Los `margenObjetivo` y rangos de descuento en los perfiles de vendedores del seed son aspiracionales, no determinísticos.** El margen real resultante depende del mix de productos vendidos y las listas de precios de los clientes asignados. Si en el futuro queremos demos más punchy donde vendedores estrella realmente destaquen con 28%+ de margen, hay que implementar lógica en el generador de transacciones que ajuste activamente la selección de productos/clientes para cada vendedor según su perfil objetivo. Estimación: 2-3 horas.
+
 ## Reglas arquitectónicas del proyecto
 
 - **Agregaciones siempre en Postgres, nunca en JavaScript.** Supabase tiene un límite default de 1000 filas por query con `.select()`. Traer filas individuales al cliente para agregarlas en JS produce datos silenciosamente incorrectos (solo se agregan las primeras 1000 filas sin warning). Todas las queries analíticas deben implementarse como RPC functions de Postgres y llamarse con `supabase.rpc()`. Esto aplica a todas las queries actuales y futuras del dashboard.
+- **Todo texto dinámico del dashboard (especialmente el que interpola números) debe pasar por `src/lib/textos/`.** Nunca usar `${n} palabras` directamente en JSX — usar `pluralizar()` o una función específica del callout. Esto previene bugs de concordancia gramatical en español (1 cliente vs 2 clientes, está vs están, etc.).
 
 ## Insights por exhibir que el V0 actual diluye
 
 - **Caída de margen en categoría Plomería.** El escenario del proveedor inyectado en el seed (+15% costos en ~40 SKUs desde dic 2025 sin ajuste de precio) es visible en agregados por categoría pero invisible en vista global. Requiere construir una vista de margen por categoría en el módulo de Reporting, y/o una sección de "Alertas de margen" que detecte automáticamente categorías con caídas >2 puntos porcentuales. Prioridad alta para semana 2-3 del V0.
+- **Análisis de mix de productos** — comparación de concentración de ingresos vs concentración de margen. Actualmente el dashboard solo muestra tablas; a futuro agregar visualizaciones de cuadrantes (volumen × margen) para identificar estrellas, vacas, dogs, y question marks del catálogo.
+
+## Polish visual pendiente para cierre de semana 2
+
+- **Formato de "días sin vender" en la tabla de deadstock:** cambiar "134d" a "134 días" usando `conConteo()`.
+- **Tabla de deadstock: agregar columna "Bodega"** para mostrar dónde está físicamente el inventario muerto. Si un SKU tiene inventario en ambas bodegas, mostrar "León + Querétaro" o la bodega con más inventario.
+- **Revisar todos los componentes del dashboard** buscando usos de formatos raros (abreviaciones, sin pluralización, sin separadores de miles) y normalizarlos usando el módulo de textos.
 
 ---
 

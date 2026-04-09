@@ -27,14 +27,14 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 ## Estado actual
 
 - **Fase:** V0 (MVP con datos sintéticos)
-- **Semana:** 2 de 8-10 planeadas
+- **Semana:** 2 completada, iniciando semana 3
 - **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
-- Dashboard de resumen ejecutivo con: KPIs principales, gráfica de ingresos/margen mensual, Top 10 SKUs (ingresos vs margen), detección de deadstock, detección de clientes en riesgo
+- Dashboard de resumen ejecutivo con: KPIs principales, gráfica de ingresos/margen mensual, Top 10 SKUs (ingresos vs margen), detección de deadstock, detección de clientes en riesgo, rendimiento por vendedor con callouts automáticos
 - Anomalías deliberadas inyectadas en los datos para demostrar capacidad de detección (duplicados, margen erosionado en plomería, cliente en declive, deadstock)
 
 ## Decisiones tomadas
@@ -84,4 +84,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-10 (semana 2, día 3)
+**Última actualización:** 2026-04-10 (cierre semana 2)

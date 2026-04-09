@@ -36,8 +36,9 @@ RPC functions de Postgres para el dashboard:
 - `get_ingresos_mensuales(fecha_desde, fecha_hasta)` — ingresos/costos por mes
 - `get_top_skus_por_ingresos(fecha_desde, fecha_hasta)` — top 10 SKUs por ingresos
 - `get_top_skus_por_margen(fecha_desde, fecha_hasta)` — top 10 SKUs por margen % (min 20 uds, $50K)
-- `get_deadstock()` — SKUs activos sin ventas en 90+ días con inventario > 0
+- `get_deadstock()` — SKUs activos sin ventas en 90+ días con inventario > 0, incluye bodegas_con_stock
 - `get_clientes_en_riesgo()` — clientes con declive ≥50% o inactivos 60+ días
+- `get_rendimiento_vendedores(fecha_desde, fecha_hasta)` — métricas por vendedor con comparación vs mes anterior
 
 El generador de datos sintéticos vive en `scripts/seed/` (9 archivos). Se ejecuta con `npm run seed`. Incluye anomalías deliberadas (duplicados, NULLs, outliers, cliente en declive, margen erosionado en plomería).
 
@@ -70,7 +71,8 @@ src/
 │   ├── GraficaIngresosMensuales.tsx  ('use client' — Recharts)
 │   ├── TopSKUs.tsx
 │   ├── Deadstock.tsx                  ('use client' — estado expandir)
-│   └── ClientesEnRiesgo.tsx
+│   ├── ClientesEnRiesgo.tsx
+│   └── RendimientoVendedores.tsx
 ├── lib/
 │   ├── queries/           — Una query por archivo, cada una llama a supabase.rpc()
 │   │   ├── types.ts       — Tipos TS para resultados de queries
@@ -78,7 +80,8 @@ src/
 │   │   ├── ingresos-mensuales.ts
 │   │   ├── top-skus.ts
 │   │   ├── deadstock.ts
-│   │   └── clientes-en-riesgo.ts
+│   │   ├── clientes-en-riesgo.ts
+│   │   └── rendimiento-vendedores.ts
 │   ├── textos/            — Módulo centralizado de texto y formato
 │   │   ├── pluralizar.ts  — Concordancia gramatical español
 │   │   ├── formato.ts     — Formatters de moneda, %, unidades
@@ -89,16 +92,13 @@ scripts/seed/              — Generador de datos sintéticos (9 archivos)
 
 ## Estado actual del dashboard
 
-**Terminados:**
+**Terminados (semana 2):**
 - KPIs del resumen ejecutivo (5 cards con mes parcial handling)
 - Gráfica de ingresos y margen mensual (combo chart, 13 meses)
 - Top 10 SKUs por ingresos vs por margen % (dos tablas + callout de insight)
-- Detección de deadstock (hero stat + tabla expandible + callout)
+- Detección de deadstock (hero stat + tabla expandible con columna bodega + callout)
 - Clientes en riesgo (hero stat doble + tabla con fila destacada + callout)
-
-**Pendiente semana 2:**
-- Módulo de rendimiento de vendedores (Top Vendedores)
-- Polish visual (ver BACKLOG.md sección "Polish visual pendiente")
+- Rendimiento por vendedor (tabla 8 columnas + callout automático que detecta peor caso)
 
 **Pendiente semana 3+:**
 - Módulo de Purchasing (forecasting, PO suggestions)
