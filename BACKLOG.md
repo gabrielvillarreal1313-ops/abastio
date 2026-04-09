@@ -50,6 +50,20 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ---
 
+## Calidad de datos y edge cases
+
+- **Selector de periodo en el dashboard** (mes actual, mes anterior, últimos 30 días, trimestre, año). Por ahora solo mostramos el mes más reciente con datos. Diferido a V1.
+
+## Reglas arquitectónicas del proyecto
+
+- **Agregaciones siempre en Postgres, nunca en JavaScript.** Supabase tiene un límite default de 1000 filas por query con `.select()`. Traer filas individuales al cliente para agregarlas en JS produce datos silenciosamente incorrectos (solo se agregan las primeras 1000 filas sin warning). Todas las queries analíticas deben implementarse como RPC functions de Postgres y llamarse con `supabase.rpc()`. Esto aplica a todas las queries actuales y futuras del dashboard.
+
+## Insights por exhibir que el V0 actual diluye
+
+- **Caída de margen en categoría Plomería.** El escenario del proveedor inyectado en el seed (+15% costos en ~40 SKUs desde dic 2025 sin ajuste de precio) es visible en agregados por categoría pero invisible en vista global. Requiere construir una vista de margen por categoría en el módulo de Reporting, y/o una sección de "Alertas de margen" que detecte automáticamente categorías con caídas >2 puntos porcentuales. Prioridad alta para semana 2-3 del V0.
+
+---
+
 ## Cómo usar este archivo
 
 - **Al diferir algo:** agregarlo aquí en la misma sesión con categoría apropiada.
@@ -57,4 +71,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-09
+**Última actualización:** 2026-04-10
