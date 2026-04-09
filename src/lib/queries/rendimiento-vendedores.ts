@@ -74,7 +74,7 @@ export async function getRendimientoVendedores(): Promise<RendimientoVendedoresD
     throw new Error(`Error rendimiento vendedores: ${error.message}`);
   }
 
-  const vendedores: VendedorRendimiento[] = (data || []).map((r: any) => ({
+  const vendedores: VendedorRendimiento[] = (data || []).map((r: Record<string, unknown>) => ({
     vendedor_id: Number(r.vendedor_id),
     nombre: r.nombre,
     zona: r.zona,

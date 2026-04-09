@@ -32,7 +32,7 @@ export async function getDeadstock(): Promise<DeadstockData> {
     throw new Error(`Error consultando deadstock: ${error.message}`);
   }
 
-  const items: DeadstockItem[] = (data || []).map((r: any) => ({
+  const items: DeadstockItem[] = (data || []).map((r: Record<string, unknown>) => ({
     sku: r.sku,
     nombre: r.nombre,
     categoria: r.categoria,

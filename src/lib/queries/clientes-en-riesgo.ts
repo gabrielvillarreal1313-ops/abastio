@@ -32,7 +32,7 @@ export async function getClientesEnRiesgo(): Promise<ClientesEnRiesgoData> {
     throw new Error(`Error consultando clientes en riesgo: ${error.message}`);
   }
 
-  const clientes: ClienteEnRiesgo[] = (data || []).map((r: any) => ({
+  const clientes: ClienteEnRiesgo[] = (data || []).map((r: Record<string, unknown>) => ({
     cliente_id: Number(r.cliente_id),
     razon_social: r.razon_social,
     ciudad: r.ciudad,

@@ -26,7 +26,7 @@ interface Props {
 }
 
 /** Tooltip personalizado */
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: IngresoMensual }>; label?: string }) {
   if (!active || !payload?.length) return null;
 
   const punto = payload[0]?.payload as IngresoMensual | undefined;

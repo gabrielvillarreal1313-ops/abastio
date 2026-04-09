@@ -89,7 +89,7 @@ export async function getTopSKUs(): Promise<TopSKUsData> {
   if (resIngresos.error) throw new Error(`Error top ingresos: ${resIngresos.error.message}`);
   if (resMargen.error) throw new Error(`Error top margen: ${resMargen.error.message}`);
 
-  const porIngresos: TopSKUIngresos[] = (resIngresos.data || []).map((r: any) => ({
+  const porIngresos: TopSKUIngresos[] = (resIngresos.data || []).map((r: Record<string, unknown>) => ({
     sku: r.sku,
     nombre: r.nombre,
     categoria: r.categoria,
@@ -98,7 +98,7 @@ export async function getTopSKUs(): Promise<TopSKUsData> {
     margen_pct: Number(r.margen_pct),
   }));
 
-  const porMargen: TopSKUMargen[] = (resMargen.data || []).map((r: any) => ({
+  const porMargen: TopSKUMargen[] = (resMargen.data || []).map((r: Record<string, unknown>) => ({
     sku: r.sku,
     nombre: r.nombre,
     categoria: r.categoria,
