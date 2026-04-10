@@ -27,20 +27,20 @@ export function AlertasMargen({ data }: Props) {
 
   return (
     <div>
-      {/* Titulo */}
+      {/* Título */}
       <div className="mb-5">
         <h2 className="text-base font-semibold text-gray-900">
-          Alertas de margen por categoria
+          Alertas de margen por categoría
         </h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Categorias con caida significativa vs promedio historico
+          Categorías con caída significativa vs promedio histórico
         </p>
       </div>
 
-      {/* Estado vacio positivo */}
+      {/* Estado vacío positivo */}
       {esPositivo && (
         <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 mb-4 flex flex-col items-center gap-2">
-          {/* Icono check verde */}
+          {/* Ícono check verde */}
           <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
             <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -66,7 +66,7 @@ export function AlertasMargen({ data }: Props) {
                 className="bg-white rounded-lg border border-gray-200 px-5 py-4"
               >
                 <div className="flex items-start gap-3">
-                  {/* Icono de alerta */}
+                  {/* Ícono de alerta */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${iconColor}`}>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -74,7 +74,7 @@ export function AlertasMargen({ data }: Props) {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    {/* Nombre de categoria + badge */}
+                    {/* Nombre de categoría + badge */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-gray-900">
                         {alerta.categoria}
@@ -84,14 +84,14 @@ export function AlertasMargen({ data }: Props) {
                       </span>
                     </div>
 
-                    {/* Margen actual vs historico */}
+                    {/* Margen actual vs histórico */}
                     <p className="text-sm text-gray-600 mt-1">
-                      {formatPct(alerta.margen_reciente_pct)} actual vs {formatPct(alerta.margen_historico_pct)} historico
+                      {formatPct(alerta.margen_reciente_pct)} actual vs {formatPct(alerta.margen_historico_pct)} histórico
                     </p>
 
                     {/* Detalle */}
                     <p className="text-xs text-gray-400 mt-1">
-                      Ultimos 3 meses vs 9 meses anteriores · {conConteo(alerta.skus_afectados, 'SKU afectado', 'SKUs afectados')}
+                      Últimos 3 meses vs 9 meses anteriores · {conConteo(alerta.skus_afectados, 'SKU afectado', 'SKUs afectados')}
                     </p>
                   </div>
                 </div>

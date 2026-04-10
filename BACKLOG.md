@@ -33,6 +33,22 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Alertas agrupadas por proveedor en lugar de categoría.** Diferido a V2. Permitiría detectar que un aumento de costos viene de un proveedor específico que afecta múltiples categorías.
 - **Notificaciones automáticas por email o WhatsApp al cruzar umbral crítico.** Diferido a V2. Integrar con sistema de alertas push cuando una categoría cruza el umbral de caída crítica (>5pp).
 
+## Módulo de Compras
+
+- **Persistir tab activo en la URL como query param.** Diferido a V1. Actualmente el tab activo es estado local del componente. Usar `?tab=pronostico` para que un link directo a un tab específico funcione.
+- **Badge de "nuevo" en el link de Compras en el sidebar.** Diferido a V1. Agregar ícono o badge visual para destacar que es funcionalidad nueva y atraer atención del usuario.
+- **Paginación de la tabla de pronóstico.** Diferido a V1. Actualmente carga todos los SKUs (~772 filas). Implementar paginación server-side o virtual scrolling para mejor rendimiento.
+- **Filtro por proveedor en tab Pronóstico.** Diferido a V1. Requiere campo `proveedor_principal` poblado en tabla productos, disponible cuando se conecten ERPs reales con catálogo completo.
+- **Selector de horizonte extendido hasta 18 meses.** Diferido a V1. Actualmente el selector ofrece 1, 3, 6 meses. Extender a 12 y 18 meses como en Recurrency para planeación a largo plazo.
+- **Sparkline con dos segmentos visuales (historial + pronóstico).** Diferido a V1. Deuda técnica conocida: actualmente la sparkline solo muestra historial. Implementar dos segmentos — historial en gris y proyección en color — igual que Recurrency, para distinguir visualmente dato real de proyección.
+- **Modelo de forecasting con detección de estacionalidad.** Diferido a V2. El modelo actual usa promedio ponderado simple. Implementar detección automática de patrones estacionales (ej: picos en diciembre) para pronósticos más precisos.
+- **Herencia de item entre SKUs.** Diferido a V2. Cuando un SKU nuevo reemplaza a uno descontinuado, heredar su historial de demanda para que el pronóstico del nuevo no arranque de cero.
+- **Lead time calculado automáticamente del historial de órdenes de compra del ERP.** Diferido a V1. Actualmente usa un valor fijo de 14 días. Con datos reales del ERP, calcular lead time promedio por proveedor/SKU desde el historial de POs.
+- **Columna de proveedor en tab Compras.** Diferido a V1. Requiere campo `proveedor_principal` poblado en tabla productos, disponible cuando se conecten ERPs reales.
+- **Botón "Generar orden de compra" con write-back real al ERP.** Diferido a V1. Actualmente muestra un toast placeholder. Implementar creación de PO en SAP B1 / CONTPAQi vía API.
+- **Fill rate y rotación de inventario (inventory turns) por SKU en tab Planeación.** Diferido a V1. Métricas adicionales para evaluar eficiencia de inventario.
+- **Safety stock dinámico según nivel de servicio objetivo.** Diferido a V2. Actualmente el safety stock es fijo (7 días). Calcular dinámicamente basado en variabilidad de demanda y nivel de servicio configurable por cliente (ej: 95%, 99%).
+
 ## Fintech y monetización expandida
 
 - **Crédito comercial embebido.** Diferido a V3+. Tesis de largo plazo: después de tener la capa operativa instalada, agregar lending basado en datos transaccionales.

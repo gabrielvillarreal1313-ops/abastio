@@ -34,7 +34,11 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
-- Dashboard de resumen ejecutivo con: KPIs principales, gráfica de ingresos/margen mensual, Top 10 SKUs (ingresos vs margen), detección de deadstock, detección de clientes en riesgo, rendimiento por vendedor con callouts automáticos
+- Dashboard de resumen ejecutivo con: KPIs principales, gráfica de ingresos/margen mensual, Top 10 SKUs (ingresos vs margen), alertas de margen por categoría (detecta erosión de Plomería), detección de deadstock, detección de clientes en riesgo, rendimiento por vendedor con callouts automáticos
+- Módulo de Compras completo con tres tabs funcionales:
+  - **Tab Pronóstico:** tabla de 1,544 filas (772 SKUs × 2 bodegas) con clasificación ABC, sparklines de tendencia, pronóstico ponderado, porcentaje de cambio con color condicional, sorting por columna, y filtros de bodega/categoría/clase ABC/demanda reciente/horizonte (1/3/6 meses)
+  - **Tab Planeación:** análisis de min/max de inventario con mínimos y máximos recomendados calculados automáticamente. Fórmulas: mín. recomendado = demanda diaria promedio × (7 días safety stock + 14 días lead time); máx. recomendado = demanda mensual promedio × 2 meses. Incluye modal de detalle del cálculo, filtros por estado (OK/Revisar), búsqueda, y sorting
+  - **Tab Compras:** sugerencias de órdenes de compra con detección de desabasto/sobrestock, cantidad a pedir, meses de suministro (cantidad actual ÷ demanda mensual), selección múltiple, y botón "Generar orden de compra" (placeholder V1)
 - Anomalías deliberadas inyectadas en los datos para demostrar capacidad de detección (duplicados, margen erosionado en plomería, cliente en declive, deadstock)
 
 ## Decisiones tomadas
@@ -61,13 +65,48 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 ## Próximos pasos inmediatos
 
-**Semana 3 (actual):**
-- Módulo de Purchasing: forecasting de demanda, sugerencias de PO, análisis de min/max
-- Alertas de margen por categoría (hacer visible el escenario de plomería)
+**Semana 3 (completada):**
+- ~~Módulo de Compras completo~~ — tres tabs funcionales (Pronóstico, Planeación, Compras)
+- ~~Alertas de margen por categoría~~ — detecta erosión de Plomería
 
-**Semana 4:**
+**Semana 4 (actual):**
 - Módulo de Sales intelligence: cross-sell/upsell, patrones de recompra
 - Empezar a investigar API de SAP Business One Service Layer
+
+## Paridad con Recurrency — Módulo Compras
+
+| Feature de Recurrency | Estado | Notas |
+|------------------------|--------|-------|
+| Tabla de forecasting por SKU | Implementado | Tab Pronóstico con 772 SKUs × 2 bodegas |
+| Clasificación ABC por ingresos | Implementado | A (top 20%), B (20-50%), C (resto) |
+| Sparkline de tendencia por fila | Implementado | Serie de 6 meses con Recharts |
+| Filtro por bodega/ubicación | Implementado | Todas / León / Querétaro |
+| Filtro por categoría | Implementado | 9 categorías del catálogo |
+| Filtro por clase ABC | Implementado | Todas / A / B / C |
+| Toggle de demanda reciente | Implementado | Muestra/oculta SKUs sin ventas en 6 meses |
+| Selector de horizonte (1-6 meses) | Implementado | 1, 3, 6 meses; extensión a 18 meses en backlog V1 |
+| Porcentaje de cambio con color | Implementado | Verde >+10%, rojo <-10%, gris neutro |
+| Sorting por columna | Implementado | SKU, clase ABC, demanda, pronóstico, cambio %, ingresos |
+| Filtro por proveedor (Primary Vendor) | Backlog V1 | Requiere datos de ERP reales |
+| Horizonte extendido hasta 18 meses | Backlog V1 | Actualmente máximo 6 meses |
+| Sparkline con segmento de pronóstico | Backlog V1 | Historial gris + proyección en color |
+| Detección de estacionalidad | Backlog V2 | Modelo actual es promedio ponderado simple |
+| Herencia de item (SKU sucesor) | Backlog V2 | Para SKUs que reemplazan descontinuados |
+| Min/max dinámicos por SKU | Implementado | Tab Planeación: mín = demanda diaria × 21 días, máx = demanda mensual × 2 |
+| Modal de detalle de cálculo | Implementado | Muestra fórmula completa con valores reales del SKU |
+| Estado de inventario (OK/Revisar) | Implementado | Filtros tipo Recurrency con conteo por estado |
+| Sugerencias de PO automáticas | Implementado | Tab Compras: detecta desabasto, calcula cantidad a pedir |
+| Selección múltiple para PO | Implementado | Checkbox por fila + seleccionar todos + botón "Generar OC" |
+| Meses de suministro por SKU | Implementado | cantidad actual ÷ demanda mensual, con color condicional |
+| Estado desabasto/OK/sobrestock | Implementado | Badges de color como Recurrency + filtros por estado |
+| Búsqueda por SKU/nombre | Implementado | Client-side en tabs Planeación y Compras |
+| Lead time calculado del ERP | Backlog V1 | Actualmente fijo a 14 días |
+| Fill rate e inventory turns | Backlog V1 | Métricas adicionales de eficiencia |
+| Safety stock dinámico | Backlog V2 | Actualmente fijo a 7 días |
+| Generación real de PO en ERP | Backlog V1 | Actualmente muestra toast placeholder |
+| Integración con ERP para POs | N/A en V0 | V0 usa datos sintéticos, no se conecta a ERPs |
+| Epicor Prophet 21 integration | N/A | Recurrency usa P21; nosotros usaremos SAP B1 / CONTPAQi / Aspel |
+| Pricing dinámico desde forecasting | N/A en V0 | Feature diferido a módulo de Sales intelligence |
 
 ---
 
@@ -79,4 +118,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-10 (cierre semana 2)
+**Última actualización:** 2026-04-10 (semana 3 en progreso)
