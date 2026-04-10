@@ -102,6 +102,60 @@ export function calloutClientesEnRiesgo(numClientes: number, ingresosPotenciales
   );
 }
 
+// ─── Alertas de margen por categoría ────────────────────────────────────────
+
+/**
+ * Texto del callout de alertas de margen.
+ *
+ * Casos:
+ * - 0 alertas: mensaje positivo
+ * - 1 alerta crítica: singular con nombre de categoría
+ * - Múltiples con al menos una crítica: resumen con conteo
+ * - Solo advertencias: monitoreo suave
+ */
+export function calloutAlertasMargen(
+  numAlertas: number,
+  numCriticas: number,
+  categoriaSiUnica?: string,
+  caidaSiUnica?: number,
+): string {
+  if (numAlertas === 0) {
+    return 'Márgenes estables en todas las categorías — sin caídas significativas en los últimos 3 meses.';
+  }
+
+  // Una sola alerta y es crítica
+  if (numAlertas === 1 && numCriticas === 1 && categoriaSiUnica && caidaSiUnica !== undefined) {
+    return (
+      `${categoriaSiUnica} muestra una caída crítica de ${caidaSiUnica.toFixed(1)}pp en su margen ` +
+      `— requiere revisión urgente de precios o costos.`
+    );
+  }
+
+  // Una sola alerta y es advertencia
+  if (numAlertas === 1 && numCriticas === 0 && categoriaSiUnica && caidaSiUnica !== undefined) {
+    return (
+      `${categoriaSiUnica} muestra una caída de ${caidaSiUnica.toFixed(1)}pp en su margen ` +
+      `entre 3 y 5pp. Monitorea tendencia en las próximas semanas.`
+    );
+  }
+
+  // Múltiples con al menos una crítica
+  if (numCriticas > 0) {
+    return (
+      `${conConteo(numAlertas, 'categoría muestra', 'categorías muestran')} caídas de margen, ` +
+      `${numCriticas} de ${pluralizarVerbo(numCriticas, 'ella', 'ellas')} ` +
+      `${pluralizarVerbo(numCriticas, 'crítica', 'críticas')} (>5pp). ` +
+      `Revisa costos de proveedor o actualiza precios de lista.`
+    );
+  }
+
+  // Solo advertencias
+  return (
+    `${conConteo(numAlertas, 'categoría muestra', 'categorías muestran')} caídas de margen ` +
+    `entre 3 y 5pp. Monitorea tendencia en las próximas semanas.`
+  );
+}
+
 // ─── Rendimiento de vendedores ──────────────────────────────────────────────
 
 interface VendedorParaCallout {
