@@ -26,6 +26,13 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Detección y merge automático de SKUs/clientes duplicados.** El V0 los detecta y muestra, pero no los resuelve automáticamente. Diferido a V1.
 - **Módulo de riesgo crediticio y cobranza.** Diferido a V2.
 
+## Alertas de margen
+
+- **Criterio de alerta basado en rangos objetivo por categoría.** Diferido a V1. Actualmente el umbral es fijo (caída >3pp). Implementar tabla `MARGENES_POR_CATEGORIA` en config con rangos objetivo por categoría para alertas más inteligentes.
+- **Drill-down al hacer clic en una card de alerta.** Diferido a V1. Mostrar los SKUs específicos afectados dentro de la categoría, ordenados por contribución a la caída de margen.
+- **Alertas agrupadas por proveedor en lugar de categoría.** Diferido a V2. Permitiría detectar que un aumento de costos viene de un proveedor específico que afecta múltiples categorías.
+- **Notificaciones automáticas por email o WhatsApp al cruzar umbral crítico.** Diferido a V2. Integrar con sistema de alertas push cuando una categoría cruza el umbral de caída crítica (>5pp).
+
 ## Fintech y monetización expandida
 
 - **Crédito comercial embebido.** Diferido a V3+. Tesis de largo plazo: después de tener la capa operativa instalada, agregar lending basado en datos transaccionales.
@@ -65,7 +72,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ## Insights por exhibir que el V0 actual diluye
 
-- **Caída de margen en categoría Plomería.** El escenario del proveedor inyectado en el seed (+15% costos en ~40 SKUs desde dic 2025 sin ajuste de precio) es visible en agregados por categoría pero invisible en vista global. Requiere construir una vista de margen por categoría en el módulo de Reporting, y/o una sección de "Alertas de margen" que detecte automáticamente categorías con caídas >2 puntos porcentuales. Prioridad alta para semana 2-3 del V0.
+- **~~Caída de margen en categoría Plomería.~~** RESUELTO — implementada sección "Alertas de margen por categoría" en el dashboard que detecta automáticamente categorías con caídas >3pp. Plomería aparece como alerta.
 - **Análisis de mix de productos** — comparación de concentración de ingresos vs concentración de margen. Actualmente el dashboard solo muestra tablas; a futuro agregar visualizaciones de cuadrantes (volumen × margen) para identificar estrellas, vacas, dogs, y question marks del catálogo.
 
 ## Polish visual pendiente para cierre de semana 2
