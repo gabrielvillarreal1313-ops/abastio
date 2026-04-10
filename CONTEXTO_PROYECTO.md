@@ -61,12 +61,7 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 ## Próximos pasos inmediatos
 
-**Cerrar semana 2:**
-- Módulo de rendimiento de vendedores (Top Vendedores)
-- Polish visual del dashboard
-- Commit y deploy a Vercel
-
-**Semana 3:**
+**Semana 3 (actual):**
 - Módulo de Purchasing: forecasting de demanda, sugerencias de PO, análisis de min/max
 - Alertas de margen por categoría (hacer visible el escenario de plomería)
 
