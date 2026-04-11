@@ -10,6 +10,7 @@ import type { DeadstockData } from '@/lib/queries/deadstock';
 import { formatMXNCorto, formatMXNTabla, formatUnidades } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
 import { calloutDeadstock } from '@/lib/textos/callouts';
+import { ProductoLink } from '@/components/ui/ProductoLink';
 
 interface Props {
   data: DeadstockData;
@@ -75,7 +76,7 @@ export function Deadstock({ data }: Props) {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-gray-900 truncate max-w-[220px]" title={item.nombre}>
-                        {item.nombre}
+                        <ProductoLink sku={item.sku} nombre={item.nombre} />
                       </div>
                       <div className="text-xs text-gray-400">{item.categoria}</div>
                     </td>

@@ -43,7 +43,7 @@ function parseForecastRow(r: Record<string, unknown>): ForecastSKU {
     demanda_mensual_pronostico: Number(r.demanda_mensual_pronostico) || 0,
     serie_6_meses: Array.isArray(r.serie_6_meses) ? (r.serie_6_meses as PuntoSerie[]) : [],
     ingresos_totales: Number(r.ingresos_totales) || 0,
-    tiene_demanda_reciente: r.tiene_demanda_reciente === true,
+    tiene_demanda_reciente: r.tiene_demanda_reciente === true || r.tiene_demanda_reciente === 'true',
   };
 }
 

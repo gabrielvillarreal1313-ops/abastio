@@ -1,12 +1,17 @@
+'use client';
+
 /**
  * ClientesEnRiesgo — Detección de clientes con declive o inactividad.
  * Hero stat + tabla con fila destacada para el cliente de mayor impacto + callout.
+ * Las filas son clickeables y navegan al detalle del cliente.
  */
 
+import { useRouter } from 'next/navigation';
 import type { ClientesEnRiesgoData } from '@/lib/queries/clientes-en-riesgo';
 import { formatMXNCorto, formatMXNTabla, formatCambioPct } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
 import { calloutClientesEnRiesgo } from '@/lib/textos/callouts';
+import { ClienteLink } from '@/components/ui/ClienteLink';
 
 interface Props {
   data: ClientesEnRiesgoData;
@@ -23,6 +28,7 @@ const BADGE_TIPO_CLIENTE: Record<string, string> = {
 };
 
 export function ClientesEnRiesgo({ data }: Props) {
+  const router = useRouter();
   const { clientes, totalIngresosPotenciales } = data;
   const textoCallout = calloutClientesEnRiesgo(clientes.length, totalIngresosPotenciales);
   const esPositivo = clientes.length === 0;
@@ -89,15 +95,16 @@ export function ClientesEnRiesgo({ data }: Props) {
                   return (
                     <tr
                       key={cliente.cliente_id}
-                      className={
+                      onClick={() => router.push(`/dashboard/clientes/${cliente.cliente_id}`)}
+                      className={`cursor-pointer ${
                         esDestacado
-                          ? 'bg-amber-50/50 border-l-2 border-l-amber-400'
+                          ? 'bg-amber-50/50 border-l-2 border-l-amber-400 hover:bg-amber-50'
                           : 'hover:bg-gray-50 transition-colors'
-                      }
+                      }`}
                     >
                       <td className="px-5 py-2.5">
                         <div className="font-medium text-gray-900 truncate max-w-[240px]" title={cliente.razon_social}>
-                          {cliente.razon_social}
+                          <ClienteLink clienteId={cliente.cliente_id} nombre={cliente.razon_social} />
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-400">{cliente.ciudad}</span>

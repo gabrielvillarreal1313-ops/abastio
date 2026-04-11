@@ -26,6 +26,25 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Detección y merge automático de SKUs/clientes duplicados.** El V0 los detecta y muestra, pero no los resuelve automáticamente. Diferido a V1.
 - **Módulo de riesgo crediticio y cobranza.** Diferido a V2.
 
+## Módulo de Clientes
+
+- **Búsqueda global tipo Recurrency.** Diferido a V1. Buscar simultáneamente en clientes y productos desde cualquier página, con resultados agrupados por tipo.
+- **Exportar lista de clientes a CSV.** Diferido a V1. Botón de descarga con los filtros aplicados.
+- **Historial de transacciones completo en página de detalle.** Diferido a V1. Tabla paginada de todas las compras del cliente, con filtros de fecha y búsqueda por producto.
+- **Notas y tareas por cliente (CRM básico).** Diferido a V2. Agregar notas de seguimiento y tareas asignables al vendedor principal.
+
+## Módulo de Vendedores
+
+- **Comparación de rendimiento entre vendedores en una sola vista.** Diferido a V1. Vista de radar o tabla comparativa lado a lado con métricas normalizadas.
+- **Historial de transacciones paginado por vendedor.** Diferido a V1. Tabla de todas las ventas del vendedor con filtros de fecha, cliente, y producto.
+- **Metas de ventas por vendedor con seguimiento de avance.** Diferido a V2. Definir metas mensuales de ingresos/margen y mostrar progreso en barras visuales.
+
+## Módulo de Productos
+
+- **Historial de transacciones paginado en detalle de producto.** Diferido a V1. Tabla de todas las ventas del producto con filtros de fecha, cliente, y bodega.
+- **Comparación de margen entre períodos configurable.** Diferido a V1. Actualmente compara últimos 12 meses vs primeros 9 meses. Permitir al usuario seleccionar períodos arbitrarios.
+- **Alertas de precio cuando costo_unitario difiere del costo en transacciones recientes.** Diferido a V2. Detecta automáticamente el escenario del proveedor de plomería: costo en tabla productos desactualizado vs costo real que se está pagando.
+
 ## Alertas de margen
 
 - **Criterio de alerta basado en rangos objetivo por categoría.** Diferido a V1. Actualmente el umbral es fijo (caída >3pp). Implementar tabla `MARGENES_POR_CATEGORIA` en config con rangos objetivo por categoría para alertas más inteligentes.

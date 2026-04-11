@@ -5,6 +5,7 @@
 import type { RendimientoVendedoresData } from '@/lib/queries/rendimiento-vendedores';
 import { formatMXNTabla, formatMXN, formatPct, formatCambioPct } from '@/lib/textos/formato';
 import { calloutRendimientoVendedores } from '@/lib/textos/callouts';
+import { VendedorLink } from '@/components/ui/VendedorLink';
 
 interface Props {
   data: RendimientoVendedoresData;
@@ -83,7 +84,9 @@ export function RendimientoVendedores({ data }: Props) {
                   return (
                     <tr key={v.vendedor_id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-2.5">
-                        <div className="font-medium text-gray-900">{v.nombre}</div>
+                        <div className="font-medium text-gray-900">
+                          <VendedorLink vendedorId={v.vendedor_id} nombre={v.nombre} />
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-400">{v.zona}</span>
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-slate-600 bg-slate-100">

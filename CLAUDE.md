@@ -50,7 +50,7 @@ El generador de datos sintéticos vive en `scripts/seed/` (9 archivos). Se ejecu
 
 3. **Valores de filtros client-side deben coincidir exactamente con los datos de la DB.** Nunca hardcodear valores de filtro sin verificar primero qué retorna la RPC. Siempre ejecutar un `SELECT DISTINCT campo FROM funcion() LIMIT 5` antes de escribir las opciones del filtro. Bug real: el filtro de bodega usaba "León"/"Querétaro" pero la DB retornaba "Bodega Central León"/"Bodega Querétaro".
 
-4. **Campos de RPCs pueden ser null — usar `??` y guards defensivos.** En `src/lib/queries/`, todo campo string debe usar `?? ''`, todo número `|| 0`, todo booleano `=== true`, y arrays `Array.isArray()`. Nunca usar `as string` sin `??` porque convierte null en la string literal `"undefined"`. Bug real: `bodega_nombre` llegó como null en algunos registros, causando runtime error en `.replace()`.
+4. **Campos de RPCs pueden ser null — usar `??` y guards defensivos.** En `src/lib/queries/`, todo campo string debe usar `?? ''`, todo número `|| 0`, todo booleano `r.campo === true || r.campo === 'true'` (nunca `Boolean()` porque Postgres puede retornar el string `"false"` y `Boolean("false")` es `true` en JS), y arrays `Array.isArray()`. Nunca usar `as string` sin `??` porque convierte null en la string literal `"undefined"`.
 
 5. **Todo texto dinámico que interpola números debe pasar por `src/lib/textos/`.** Usar `pluralizar()`, `conConteo()`, `pluralizarVerbo()` para concordancia gramatical en español. Usar funciones de `callouts.ts` para textos de callout. Nunca interpolar números directamente en JSX.
 
@@ -64,6 +64,8 @@ El generador de datos sintéticos vive en `scripts/seed/` (9 archivos). Se ejecu
 
 10. **"Mes actual" = el mes más reciente con datos en MAX(fecha) de transacciones**, no la fecha del sistema. Crítico porque los datos sintéticos terminan en abril 2026.
 
+11. **Nombres de entidades clickeables deben usar componentes de link de `src/components/ui/`.** ClienteLink para clientes, ProductoLink y VendedorLink (futuro) para productos y vendedores. Estos componentes heredan el color del contexto con hover:underline, para integrarse en tablas sin romper jerarquía visual.
+
 ## Estructura del proyecto
 
 ```
@@ -71,16 +73,24 @@ src/
 ├── app/
 │   ├── dashboard/
 │   │   ├── layout.tsx    — Sidebar fijo (slate-900) + área principal
-│   │   └── page.tsx      — Server Component, orquesta todas las queries
+│   │   ├── page.tsx      — Server Component, orquesta todas las queries
+│   │   ├── compras/      — Módulo de Compras (Pronóstico, Planeación, Compras)
+│   │   └── clientes/     — Lista + detalle [id]
 │   ├── page.tsx           — Test de conexión a Supabase (legacy)
 │   └── layout.tsx         — Root layout
-├── components/dashboard/
-│   ├── KPICard.tsx
-│   ├── GraficaIngresosMensuales.tsx  ('use client' — Recharts)
-│   ├── TopSKUs.tsx
-│   ├── Deadstock.tsx                  ('use client' — estado expandir)
-│   ├── ClientesEnRiesgo.tsx
-│   └── RendimientoVendedores.tsx
+├── components/
+│   ├── ui/
+│   │   └── ClienteLink.tsx — Link inline a detalle de cliente
+│   └── dashboard/
+│       ├── KPICard.tsx
+│       ├── GraficaIngresosMensuales.tsx  ('use client' — Recharts)
+│       ├── TopSKUs.tsx
+│       ├── Deadstock.tsx                  ('use client' — estado expandir)
+│       ├── ClientesEnRiesgo.tsx            ('use client' — filas clickeables)
+│       ├── RendimientoVendedores.tsx
+│       ├── AlertasMargen.tsx
+│       ├── compras/                        — TabPronostico, TabPlaneacion, TabCompras, ComprasTabs
+│       └── clientes/                       — ListaClientes
 ├── lib/
 │   ├── queries/           — Una query por archivo, cada una llama a supabase.rpc()
 │   │   ├── types.ts       — Tipos TS para resultados de queries

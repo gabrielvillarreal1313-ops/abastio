@@ -39,6 +39,19 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - **Tab Pronóstico:** tabla de 1,544 filas (772 SKUs × 2 bodegas) con clasificación ABC, sparklines de tendencia, pronóstico ponderado, porcentaje de cambio con color condicional, sorting por columna, y filtros de bodega/categoría/clase ABC/demanda reciente/horizonte (1/3/6 meses)
   - **Tab Planeación:** análisis de min/max de inventario con mínimos y máximos recomendados calculados automáticamente. Fórmulas: mín. recomendado = demanda diaria promedio × (7 días safety stock + 14 días lead time); máx. recomendado = demanda mensual promedio × 2 meses. Incluye modal de detalle del cálculo, filtros por estado (OK/Revisar), búsqueda, y sorting
   - **Tab Compras:** sugerencias de órdenes de compra con detección de desabasto/sobrestock, cantidad a pedir, meses de suministro (cantidad actual ÷ demanda mensual), selección múltiple, y botón "Generar orden de compra" (placeholder V1)
+- Módulo de Clientes completo:
+  - **Lista de clientes** (/dashboard/clientes): tabla de 110 clientes con ingresos 12m, ticket promedio, días sin comprar, cambio %, estado activo/en riesgo, vendedor principal. Filtros por estado/tipo/búsqueda, sorting por columna, filas clickeables al detalle
+  - **Detalle de cliente** (/dashboard/clientes/[id]): header con estado, 5 KPI cards (ingresos 12m, YTD, ticket, transacciones, margen), gráfica de ingresos mensuales (reutiliza componente existente), top 10 SKUs comprados con frecuencia de compra
+  - **Filas clickeables en Clientes en Riesgo** del Resumen Ejecutivo: navegan directamente al detalle del cliente
+- Módulo de Productos completo:
+  - **Lista de productos** (/dashboard/productos): tabla de 772 SKUs con ingresos 12m, margen %, stock, clase ABC, proveedor, días sin vender, estado activo/deadstock. Filtros por categoría/clase/estado/búsqueda, sorting por columna, filas clickeables al detalle
+  - **Detalle de producto** (/dashboard/productos/[sku]): header con estado, 5 KPI cards (ingresos 12m, margen con comparación histórica, stock, clientes activos, días sin vender), gráfica de ingresos mensuales + card de inventario por bodega con barras visuales de nivel, top 10 clientes con ClienteLink
+  - **SKUs clickeables** en TopSKUs, Deadstock, y detalle de cliente: todos usan ProductoLink (src/components/ui/ProductoLink.tsx)
+- Módulo de Vendedores completo:
+  - **Lista de vendedores** (/dashboard/vendedores): tabla de 7 vendedores con ingresos mes actual, cambio vs anterior, margen, descuento promedio, clientes activos. Filtros por zona y tipo, sorting por columna, filas clickeables al detalle
+  - **Detalle de vendedor** (/dashboard/vendedores/[id]): header con zona y tipo, KPI cards (ingresos 12m, margen, descuento, clientes activos + card de clientes en riesgo si >0), gráfica de ingresos mensuales, dos tablas lado a lado (top clientes con ClienteLink + top SKUs con ProductoLink)
+  - **Vendedores clickeables** en RendimientoVendedores del Resumen Ejecutivo: usan VendedorLink (src/components/ui/VendedorLink.tsx)
+- Patrón de navegación: tres componentes de link en src/components/ui/ (ClienteLink, ProductoLink, VendedorLink). Cualquier nombre de entidad en cualquier pantalla debe usar su link correspondiente para navegación consistente
 - Anomalías deliberadas inyectadas en los datos para demostrar capacidad de detección (duplicados, margen erosionado en plomería, cliente en declive, deadstock)
 
 ## Decisiones tomadas
@@ -53,6 +66,7 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 | Abr 2026 | Nunca tocar CFDI/compliance fiscal | Gestionix (ERP MX, cerró 2023 post-adquisición Konfío) mostró que mantener compliance SAT es carga insostenible. Dejar que Aspel/CONTPAQi/SAP lo manejen |
 | Abr 2026 | Agregaciones en Postgres, no JS | Supabase limita a 1000 filas por query — todo analytics vía RPC functions |
 | Abr 2026 | Textos dinámicos centralizados | Prevenir bugs de concordancia gramatical en español |
+| Abr 2026 | Componentes de link en src/components/ui/ | ClienteLink, ProductoLink y VendedorLink — patrón estándar de navegación para cualquier entidad |
 
 ## Cosas diferidas
 
