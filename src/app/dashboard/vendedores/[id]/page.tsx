@@ -4,7 +4,6 @@
  */
 
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import {
   getVendedorDetalle,
   getVendedorIngresosMensuales,
@@ -17,6 +16,7 @@ import { ClienteLink } from '@/components/ui/ClienteLink';
 import { ProductoLink } from '@/components/ui/ProductoLink';
 import { formatMXNCorto, formatPct, formatUnidades, formatMXNTabla } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
+import { BotonVolver } from '@/components/ui/BotonVolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,12 +53,7 @@ export default async function VendedorDetallePage({ params }: { params: { id: st
     <>
       {/* Sección 1 — Header */}
       <div className="mb-8">
-        <Link href="/dashboard/vendedores" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-          Volver a vendedores
-        </Link>
+        <BotonVolver texto="Volver a vendedores" />
 
         <h1 className="text-2xl font-semibold text-gray-900">{vendedor.nombre}</h1>
         <div className="flex items-center gap-3 mt-1">

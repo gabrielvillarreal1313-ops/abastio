@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BusquedaGlobal } from '@/components/dashboard/BusquedaGlobal';
 
 const NAV_ITEMS = [
   {
@@ -46,6 +47,15 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    label: 'Oportunidades',
+    href: '/dashboard/oportunidades',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+      </svg>
+    ),
+  },
 ];
 
 export default function DashboardLayout({
@@ -86,11 +96,19 @@ export default function DashboardLayout({
       </aside>
 
       {/* ─── Área principal ──────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="px-8 py-8 max-w-7xl">
-          {children}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header con búsqueda global — sticky */}
+        <div className="flex-shrink-0 border-b border-gray-200 bg-white px-8 py-3">
+          <BusquedaGlobal />
         </div>
-      </main>
+
+        {/* Contenido scrollable */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="px-8 py-8 max-w-7xl">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -20,15 +20,16 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ## Módulos de producto
 
-- **Módulo de Purchasing completo** (forecasting, PO suggestions, min/max dinámicos). En roadmap del V0 semanas 3-4, pero si no llegamos, se difiere a V1.
-- **Módulo de Sales intelligence** (cross-sell/upsell, alertas de recompra, pricing dinámico). En roadmap del V0 semanas 5-6, si no llegamos se difiere a V1.
+- ~~**Módulo de Purchasing completo.**~~ COMPLETADO en semana 3 — tres tabs funcionales (Pronóstico, Planeación, Compras).
+- ~~**Módulo de Sales Intelligence completo.**~~ COMPLETADO en semana 5 — oportunidades (recompra + cross-sell), cotizaciones con wizard de 3 pasos, tabs Borradores/Cotizaciones, state machine de estados.
 - **Agente de WhatsApp para captura de pedidos.** Diferido a V2. Es un complemento natural al core de la capa sobre ERP pero no es el wedge inicial.
 - **Detección y merge automático de SKUs/clientes duplicados.** El V0 los detecta y muestra, pero no los resuelve automáticamente. Diferido a V1.
+- **Modelo de ML para cross-sell con % Match por SKU-cliente.** Diferido a V2+. V0 usa coocurrencia simple (SQL) que muestra "X% de clientes similares compran esto." Prerequisitos: datos transaccionales reales de al menos 3-5 clientes con 12+ meses de historial.
 - **Módulo de riesgo crediticio y cobranza.** Diferido a V2.
 
 ## Módulo de Clientes
 
-- **Búsqueda global tipo Recurrency.** Diferido a V1. Buscar simultáneamente en clientes y productos desde cualquier página, con resultados agrupados por tipo.
+- ~~**Búsqueda global.**~~ COMPLETADO — barra en header del dashboard, busca en clientes/productos/cotizaciones con Ctrl+K, resultados agrupados con links a detalle y listas filtradas.
 - **Exportar lista de clientes a CSV.** Diferido a V1. Botón de descarga con los filtros aplicados.
 - **Historial de transacciones completo en página de detalle.** Diferido a V1. Tabla paginada de todas las compras del cliente, con filtros de fecha y búsqueda por producto.
 - **Notas y tareas por cliente (CRM básico).** Diferido a V2. Agregar notas de seguimiento y tareas asignables al vendedor principal.
@@ -44,6 +45,19 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Historial de transacciones paginado en detalle de producto.** Diferido a V1. Tabla de todas las ventas del producto con filtros de fecha, cliente, y bodega.
 - **Comparación de margen entre períodos configurable.** Diferido a V1. Actualmente compara últimos 12 meses vs primeros 9 meses. Permitir al usuario seleccionar períodos arbitrarios.
 - **Alertas de precio cuando costo_unitario difiere del costo en transacciones recientes.** Diferido a V2. Detecta automáticamente el escenario del proveedor de plomería: costo en tabla productos desactualizado vs costo real que se está pagando.
+
+## Sales Intelligence y Cotizaciones
+
+- ~~**UI de creación de cotizaciones.**~~ COMPLETADO — wizard de 3 pasos (Header → Líneas → Revisión) con panel de recomendaciones (recompras, compró una vez, cross-sell), buscador de productos, precios históricos del cliente, cálculos de margen en tiempo real.
+- ~~**Tab "Borradores" y "Cotizaciones" con contenido real.**~~ COMPLETADO — tablas filtrables con sorting, filtros por vendedor/estado/búsqueda. Detalle de cotización con tabla de líneas read-only y acciones por estado (enviar, duplicar, completar, cancelar con confirmación).
+- ~~**Edición de cotizaciones en borrador.**~~ COMPLETADO — botón "Editar" en detalle de borrador abre wizard en modo edición con datos pre-llenados. Usa RPCs `actualizar_cotizacion_header` y `reemplazar_lineas_cotizacion`.
+- **Tab "Órdenes" (ORDERS) en sección de Oportunidades.** Diferido a V1. Requiere integración con ERP para convertir cotización enviada en orden de compra real.
+- **Generación de PDF de cotización.** Diferido a V1. Exportar cotización como PDF con logo, datos fiscales, y condiciones de pago.
+- **Historial de cotizaciones por cliente en detalle de cliente.** Diferido a V1. Tab adicional o sección en el detalle del cliente mostrando todas sus cotizaciones.
+- **Pricing dinámico en cotizaciones.** Diferido a V2. Sugerir precios óptimos basados en historial de compra del cliente, margen objetivo, y competencia.
+- **Aprobación de descuentos por supervisor.** Diferido a V2. Workflow de aprobación cuando un vendedor aplica descuento mayor al umbral configurado.
+- **Análisis de dispersión de precios por SKU.** Diferido a V1. Precursor de pricing dinámico: mostrar en detalle de producto que al cliente A se le vende a $X-15% y al cliente B a $X+8% vs el precio promedio. Calculable con datos actuales pero diferido por prioridad.
+- **Auto-guardado de cotizaciones en DB (no solo localStorage).** Diferido a V2. Actualmente el auto-guardado del wizard usa localStorage del navegador, lo que no sincroniza entre dispositivos. Para V2, guardar borradores automáticamente en Supabase para que un vendedor pueda empezar una cotización en desktop y continuarla en tablet.
 
 ## Alertas de margen
 
@@ -110,12 +124,6 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **~~Caída de margen en categoría Plomería.~~** RESUELTO — implementada sección "Alertas de margen por categoría" en el dashboard que detecta automáticamente categorías con caídas >3pp. Plomería aparece como alerta.
 - **Análisis de mix de productos** — comparación de concentración de ingresos vs concentración de margen. Actualmente el dashboard solo muestra tablas; a futuro agregar visualizaciones de cuadrantes (volumen × margen) para identificar estrellas, vacas, dogs, y question marks del catálogo.
 
-## Polish visual pendiente para cierre de semana 2
-
-- **Formato de "días sin vender" en la tabla de deadstock:** cambiar "134d" a "134 días" usando `conConteo()`.
-- **Tabla de deadstock: agregar columna "Bodega"** para mostrar dónde está físicamente el inventario muerto. Si un SKU tiene inventario en ambas bodegas, mostrar "León + Querétaro" o la bodega con más inventario.
-- **Revisar todos los componentes del dashboard** buscando usos de formatos raros (abreviaciones, sin pluralización, sin separadores de miles) y normalizarlos usando el módulo de textos.
-
 ---
 
 ## Cómo usar este archivo
@@ -125,4 +133,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-10
+**Última actualización:** 2026-04-11 (semana 5 completada — Sales Intelligence + cotizaciones)

@@ -27,10 +27,13 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 ## Estado actual
 
 - **Fase:** V0 (MVP con datos sintéticos)
-- **Semana:** 2 completada, iniciando semana 3
+- **Semana:** 5 completada (Sales Intelligence + cotizaciones implementados)
 - **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
+- **Rutas:** 13 páginas dinámicas (resumen, compras, clientes, productos, vendedores, oportunidades, cotización detalle, wizard cotización)
+- **RPCs:** 40+ funciones de Postgres (agregaciones + CRUD cotizaciones)
+- **Tablas:** 10 (6 seed + 2 cotizaciones + 2 cache de oportunidades)
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
@@ -41,7 +44,7 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - **Tab Compras:** sugerencias de órdenes de compra con detección de desabasto/sobrestock, cantidad a pedir, meses de suministro (cantidad actual ÷ demanda mensual), selección múltiple, y botón "Generar orden de compra" (placeholder V1)
 - Módulo de Clientes completo:
   - **Lista de clientes** (/dashboard/clientes): tabla de 110 clientes con ingresos 12m, ticket promedio, días sin comprar, cambio %, estado activo/en riesgo, vendedor principal. Filtros por estado/tipo/búsqueda, sorting por columna, filas clickeables al detalle
-  - **Detalle de cliente** (/dashboard/clientes/[id]): header con estado, 5 KPI cards (ingresos 12m, YTD, ticket, transacciones, margen), gráfica de ingresos mensuales (reutiliza componente existente), top 10 SKUs comprados con frecuencia de compra
+  - **Detalle de cliente** (/dashboard/clientes/[id]): header con estado, 5 KPI cards (ingresos 12m, YTD, ticket, transacciones, margen), gráfica de ingresos mensuales (reutiliza componente existente), top 10 SKUs comprados con patrón de compra y días desde última compra
   - **Filas clickeables en Clientes en Riesgo** del Resumen Ejecutivo: navegan directamente al detalle del cliente
 - Módulo de Productos completo:
   - **Lista de productos** (/dashboard/productos): tabla de 772 SKUs con ingresos 12m, margen %, stock, clase ABC, proveedor, días sin vender, estado activo/deadstock. Filtros por categoría/clase/estado/búsqueda, sorting por columna, filas clickeables al detalle
@@ -52,6 +55,11 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - **Detalle de vendedor** (/dashboard/vendedores/[id]): header con zona y tipo, KPI cards (ingresos 12m, margen, descuento, clientes activos + card de clientes en riesgo si >0), gráfica de ingresos mensuales, dos tablas lado a lado (top clientes con ClienteLink + top SKUs con ProductoLink)
   - **Vendedores clickeables** en RendimientoVendedores del Resumen Ejecutivo: usan VendedorLink (src/components/ui/VendedorLink.tsx)
 - Patrón de navegación: tres componentes de link en src/components/ui/ (ClienteLink, ProductoLink, VendedorLink). Cualquier nombre de entidad en cualquier pantalla debe usar su link correspondiente para navegación consistente
+- Sales Intelligence completo:
+  - **Oportunidades** (/dashboard/oportunidades): detección automática de recompras tardías (3,021) y cross-sell (2,880) con tablas de cache pre-computadas. Tabs: Oportunidades, Borradores, Cotizaciones
+  - **Cotizaciones**: wizard de 3 pasos (Header → Líneas → Revisión) con panel de recomendaciones (recompras, compró una vez, cross-sell), buscador de productos, precios históricos del cliente. Edición de borradores, duplicación, y state machine (borrador → enviada → completada/cancelada). Borrador cancelado = DELETE, enviada cancelada = UPDATE estado
+  - **Tab Oportunidades en detalle de cliente**: recompras tardías + cross-sell por cliente, botón "Nueva cotización" que abre wizard pre-llenado
+  - **Sección en Resumen Ejecutivo**: valor total de oportunidades detectadas + top 5 clientes por oportunidad
 - Anomalías deliberadas inyectadas en los datos para demostrar capacidad de detección (duplicados, margen erosionado en plomería, cliente en declive, deadstock)
 
 ## Decisiones tomadas
@@ -67,6 +75,12 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 | Abr 2026 | Agregaciones en Postgres, no JS | Supabase limita a 1000 filas por query — todo analytics vía RPC functions |
 | Abr 2026 | Textos dinámicos centralizados | Prevenir bugs de concordancia gramatical en español |
 | Abr 2026 | Componentes de link en src/components/ui/ | ClienteLink, ProductoLink y VendedorLink — patrón estándar de navegación para cualquier entidad |
+| Abr 2026 | "Patrón de compra" en vez de "Frecuencia" | Más accionable para vendedores que una frecuencia abstracta. Muestra patrón (regularmente/ocasionalmente/esporádicamente) + días desde última compra con color condicional basado en intervalo promedio del cliente |
+| Abr 2026 | Cross-sell con coocurrencia SQL, no ML | Transparente y explicable ("80% de clientes similares compran esto"). ML diferido a V2+ cuando haya datos reales de múltiples clientes |
+| Abr 2026 | Borrador cancelado = DELETE, enviada cancelada = UPDATE estado | Borradores no tienen valor de registro. Cotizaciones enviadas sí porque fueron propuestas a un cliente |
+| Abr 2026 | Precio default en cotización: último precio del cliente o precio de lista | Prioriza historial del cliente, fallback a catálogo |
+| Abr 2026 | Cache pre-computado para oportunidades | Queries de recompra y cross-sell tardan >8s en tiempo real. Pre-computar en tablas cache, refrescar con refrescar_oportunidades(). Patrón estándar de BI |
+| Abr 2026 | Auto-guardado de wizard con localStorage | Evita perder trabajo en progreso. No en DB para no crear borradores basura. Sincronización entre dispositivos diferida a V2 |
 
 ## Cosas diferidas
 
@@ -83,9 +97,21 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 - ~~Módulo de Compras completo~~ — tres tabs funcionales (Pronóstico, Planeación, Compras)
 - ~~Alertas de margen por categoría~~ — detecta erosión de Plomería
 
-**Semana 4 (actual):**
-- Módulo de Sales intelligence: cross-sell/upsell, patrones de recompra
-- Empezar a investigar API de SAP Business One Service Layer
+**Semana 4 (completada):**
+- ~~Módulo de Clientes completo~~ — lista filtrable + detalle con KPIs, gráfica y top SKUs
+- ~~Módulo de Productos completo~~ — lista filtrable + detalle con inventario por bodega y top clientes
+- ~~Módulo de Vendedores completo~~ — lista filtrable + detalle con top clientes y top SKUs
+- ~~Navegación entre entidades~~ — ClienteLink, ProductoLink, VendedorLink en todas las pantallas
+- ~~Patrón de compra~~ — reemplazó "frecuencia" por análisis de intervalos más accionable
+
+**Semana 5 (completada):**
+- ~~Sales Intelligence completo~~ — oportunidades (recompra + cross-sell), cotizaciones con wizard, tabs Borradores/Cotizaciones, state machine
+- ~~Sección de oportunidades en Resumen Ejecutivo~~ — valor total + top 5 clientes
+
+**Siguiente:**
+- Polish visual y UX del V0
+- Preparar deck/demo para inversionistas
+- Investigación de API SAP B1 diferida hasta tener primer cliente real
 
 ## Paridad con Recurrency — Módulo Compras
 
@@ -132,4 +158,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-10 (semana 3 en progreso)
+**Última actualización:** 2026-04-11 (semana 5 completada — Sales Intelligence + cotizaciones)

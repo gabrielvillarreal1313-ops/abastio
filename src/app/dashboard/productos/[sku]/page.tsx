@@ -4,13 +4,13 @@
  */
 
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getProductoDetalle, getProductoIngresosMensuales, getProductoTopClientes } from '@/lib/queries/producto-detalle';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { GraficaIngresosMensuales } from '@/components/dashboard/GraficaIngresosMensuales';
 import { ClienteLink } from '@/components/ui/ClienteLink';
 import { formatMXNCorto, formatPct, formatUnidades, formatMXNTabla } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
+import { BotonVolver } from '@/components/ui/BotonVolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,12 +44,7 @@ export default async function ProductoDetallePage({ params }: { params: { sku: s
     <>
       {/* Sección 1 — Header */}
       <div className="mb-8">
-        <Link href="/dashboard/productos" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-          Volver a productos
-        </Link>
+        <BotonVolver texto="Volver a productos" />
 
         <div className="flex items-start justify-between">
           <div>

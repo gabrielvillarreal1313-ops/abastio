@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ProductoLista } from '@/lib/queries/productos-lista';
 import { formatMXNTabla, formatPct, formatUnidades } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
@@ -64,10 +64,11 @@ function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
 
 export function ListaProductos({ productos }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   const [filtroClase, setFiltroClase] = useState('Todas');
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState(searchParams.get('busqueda') ?? '');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 

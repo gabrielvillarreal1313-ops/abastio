@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ClienteLista } from '@/lib/queries/clientes-lista';
 import { formatMXNTabla, formatMXN, formatCambioPct } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
@@ -63,9 +63,10 @@ function formatFecha(iso: string): string {
 
 export function ListaClientes({ clientes }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>('todos');
   const [filtroTipo, setFiltroTipo] = useState('Todos');
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState(searchParams.get('busqueda') ?? '');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
