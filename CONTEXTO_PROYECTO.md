@@ -108,6 +108,21 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 - ~~Sales Intelligence completo~~ — oportunidades (recompra + cross-sell), cotizaciones con wizard, tabs Borradores/Cotizaciones, state machine
 - ~~Sección de oportunidades en Resumen Ejecutivo~~ — valor total + top 5 clientes
 
+**Fase 1 — Pivot orientado al usuario operativo (completada):**
+- 1A: Backend de identidad — tablas `usuarios`/`usuario_roles`, 9 cuentas de prueba, RPCs con filtro opcional por vendedor
+- 1B: Frontend de identidad — login con Supabase Auth, middleware de protección, sidebar dinámico por roles, header con usuario/badges/selector de vista, filtrado automático para reps puros
+
+**Fase 2 — Tablero de compras (completada):**
+- 2A: Backend — RPCs de desabasto, próximos, sobrestock, KPIs comprador con ventana de 90 días
+- 2B: UI — header, KPI cards, tablas desabasto y próximos
+- 2C: Migración fórmula unificada, POs sugeridas por bodega, alertas de inventario (deadstock+sobrestock+sin movimiento), query param ?tab= en Compras
+
+**Fase 3 — POs sugeridas persistentes (completada):**
+- 3A: Backend — tabla `po_sugeridas`, 7 RPCs (generar, listar, detalle, tomar revisión, aprobar, descartar, actualizar líneas)
+- 3B: Página de detalle — edición de cantidades, paginación 50, auto-guardado, flujo revisor anti-conflicto, aprobar/descartar
+- 3C-1: Integración Tablero — POs persistentes, botón generar manual, link a detalle individual
+- 3C-2: Búsqueda typo-tolerant con pg_trgm, lead time placeholder (14 días) visible en tab Compras y detalle PO
+
 **Siguiente:**
 - Polish visual y UX del V0
 - Preparar deck/demo para inversionistas

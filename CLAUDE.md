@@ -36,6 +36,13 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `cotizaciones` — header con estado, totales, fechas
 - `cotizacion_lineas` — líneas con precios, cantidades, margen
 
+**Identidad y roles:**
+- `usuarios` — 9 filas, vincula cuentas de Supabase Auth con vendedores
+- `usuario_roles` — roles por usuario (relación N a N)
+
+**POs sugeridas (Fase 3):**
+- `po_sugeridas` — POs generadas por el sistema, agrupadas por bodega. Líneas como JSONB array editable
+
 **Cache de oportunidades (pre-computado con `refrescar_oportunidades()`):**
 - `oportunidades_recompra_cache` — 3,021 pares cliente-SKU vencidos
 - `oportunidades_cross_sell_cache` — 2,880 oportunidades por tipo de cliente
@@ -55,10 +62,10 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 **Módulo de Compras:**
 - `get_forecast_skus()` — pronóstico por SKU × bodega (~1,544 filas, requiere paginación .range())
 - `get_planeacion_inventario()` — min/max actuales vs recomendados (~1,544 filas)
-- `get_sugerencias_compra()` — detección de desabasto/sobrestock (~1,544 filas)
+- `get_sugerencias_compra()` — detección de desabasto/sobrestock/sin_movimiento con fórmula unificada (demanda×21). Incluye `bodega_id`, `demanda_diaria_promedio`, `minimo_recomendado`. Estados: desabasto, ok, sobrestock, sin_movimiento
 
 **Módulo de Clientes:**
-- `get_clientes_lista()` — 110 clientes con métricas 12m
+- `get_clientes_lista(p_vendedor_id INTEGER DEFAULT NULL)` — 110 clientes con métricas 12m. Si se pasa vendedor_id, filtra solo clientes cuyo vendedor principal es ese vendedor
 - `get_cliente_detalle(p_cliente_id)` — KPIs + info básica de un cliente
 - `get_cliente_ingresos_mensuales(p_cliente_id)` — 13 meses de historial
 - `get_cliente_top_skus(p_cliente_id)` — top 10 SKUs con patrón de compra
@@ -80,7 +87,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `get_oportunidades_recompra()` — 3,021 pares cliente-SKU vencidos (query pesada, solo para poblar cache)
 - `get_oportunidades_cross_sell()` — 2,880 oportunidades por tipo de cliente (query pesada, solo para poblar cache)
 - `refrescar_oportunidades()` — trunca y re-llena tablas de cache desde las RPCs pesadas
-- `get_lista_oportunidades()` — lee del cache, 110 clientes con conteos y valores (~95ms)
+- `get_lista_oportunidades(p_vendedor_id INTEGER DEFAULT NULL)` — lee del cache, 110 clientes con conteos y valores (~95ms). Si se pasa vendedor_id, filtra por vendedor principal del cliente usando CTE `vendedor_rank` sobre transacciones (JOIN por `vendedor_id` entero, NO por nombre denormalizado)
 - `get_resumen_oportunidades()` — totales agregados del cache (~3ms)
 - `get_top_clientes_oportunidades(p_limite)` — top N del cache (~6ms)
 - `get_oportunidades_recompra_cliente(p_cliente_id)` — lee del cache para un cliente
@@ -103,6 +110,22 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `eliminar_cotizacion(p_cotizacion_id)` — DELETE de borrador completo (header + líneas)
 - `busqueda_global(p_termino)` — busca en clientes, productos y cotizaciones simultáneamente, retorna JSON con top 5/5/3 + conteos
 
+**Tablero de compras (Fase 2) — ventana fija de 90 días para demanda:**
+- `get_items_desabasto_critico()` — SKU × bodega con stock < mínimo recomendado (demanda_diaria × 21)
+- `get_items_proximos_desabasto(p_horizonte_dias DEFAULT 14)` — stock >= mínimo PERO días hasta stockout < horizonte. Mutuamente excluyente con desabasto crítico
+- `get_alertas_sobrestock()` — SKU × bodega con > 6 meses de inventario (excluye deadstock)
+- `get_items_sin_movimiento_reciente()` — SKUs con stock > 0, sin venta en 30 días pero sí en 90 días (alerta temprana, mutuamente excluyente con deadstock)
+- `get_kpis_comprador_mes()` — KPIs agregados del mes actual (algunos campos placeholder NULL hasta fases futuras)
+
+**POs sugeridas persistentes (Fase 3):**
+- `generar_pos_sugeridas()` — genera POs por bodega desde `get_sugerencias_compra`. Conserva POs con revisor asignado, elimina huérfanas
+- `get_pos_sugeridas_pendientes()` — lista de POs pendientes de revisión (cabecera sin líneas)
+- `get_po_sugerida_detalle(p_po_id)` — detalle completo con líneas JSONB
+- `tomar_revision_po(p_po_id, p_usuario_id)` — asigna revisor. Anti-conflicto: no sobreescribe si otro ya es revisor
+- `aprobar_po(p_po_id, p_usuario_id, p_notas)` — solo el revisor asignado puede aprobar
+- `descartar_po(p_po_id, p_usuario_id, p_notas)` — solo el revisor asignado puede descartar
+- `actualizar_lineas_po(p_po_id, p_usuario_id, p_lineas)` — reemplaza líneas y recalcula metadatos. NO usar JSON.stringify
+
 **Estados de cotización y transiciones:**
 - `borrador` → `enviada` (Enviar a ERP) | eliminado (Cancelar → DELETE)
 - `enviada` → `completada` (Completar) | `cancelada` (Cancelar → UPDATE)
@@ -111,6 +134,29 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - Regla: borrador cancelado se ELIMINA (DELETE), enviada cancelada se MARCA (UPDATE estado)
 
 El generador de datos sintéticos vive en `scripts/seed/` (9 archivos). Se ejecuta con `npm run seed`. Incluye anomalías deliberadas (duplicados, NULLs, outliers, cliente en declive, margen erosionado en plomería). Después del seed, ejecutar `SELECT refrescar_oportunidades()` para poblar las tablas de cache.
+
+Seed de usuarios de prueba: `npm run seed:usuarios` (9 cuentas con Auth + roles).
+
+## Modelo de identidad
+
+3 roles: `rep` (vendedor), `comprador`, `dueno`. Un usuario puede tener múltiples roles simultáneamente (relación N a N vía `usuario_roles`).
+
+- **rep** — tiene `vendedor_id` poblado, ve solo sus clientes/oportunidades.
+- **comprador** — ve módulo de compras, sin restricción de vendedor.
+- **dueno** — ve todo, acceso completo al dashboard.
+
+Jerarquía de rol primario para aterrizaje al login: `dueno` > `comprador` > `rep`. Si un usuario tiene múltiples roles, aterriza en la vista del rol de mayor jerarquía.
+
+Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tienen NULL.
+
+## Autenticación y middleware
+
+- Existe un cliente Supabase server-side en `src/lib/supabase-server.ts` separado del cliente original en `src/lib/supabase.ts`. El original se usa para queries que no necesitan contexto de usuario. El server-side usa `@supabase/ssr` con cookies.
+- El middleware en la raíz (`middleware.ts`) protege todas las rutas bajo `/dashboard/*`. Si no hay sesión, redirige a `/login`.
+- Para obtener el usuario logueado en cualquier Server Component, importar `getUsuarioActual()` de `src/lib/auth/usuario-actual.ts`.
+- Los tipos y utilidades de roles (`Rol`, `calcularRolPrimario`, `paginaAterrizajePorRol`) viven en `src/lib/auth/roles.ts` para que los componentes `'use client'` puedan importarlos sin arrastrar `next/headers`.
+- Mutaciones de auth (login, logout) DEBEN redirigir con `window.location.href` desde el cliente, no con `router.push`.
+- **Filtrado por vendedor:** las RPCs `get_clientes_lista` y `get_lista_oportunidades` reciben `p_vendedor_id` solo cuando el usuario actual tiene exactamente un rol y es `rep`. Multi-rol siempre ve sin filtro (perspectiva de empresa).
 
 ## Reglas arquitectónicas
 
@@ -140,15 +186,27 @@ El generador de datos sintéticos vive en `scripts/seed/` (9 archivos). Se ejecu
 
 13. **Después de mutaciones (INSERT/UPDATE/DELETE), redirigir con `window.location.href`.** No usar `router.push()` ni `router.refresh()` — el cache de Next.js es impredecible con datos recién cambiados. `window.location.href` fuerza un full page reload que limpia todo cache.
 
-13. **Después de crear tablas o funciones nuevas en Supabase, ejecutar `NOTIFY pgrst, 'reload schema'`.** PostgREST cachea el schema y no detecta cambios automáticamente. Sin el NOTIFY, `supabase.rpc()` retorna `[]` sin error para funciones que PostgREST no conoce.
+14. **Después de crear tablas o funciones nuevas en Supabase, ejecutar `NOTIFY pgrst, 'reload schema'`.** PostgREST cachea el schema y no detecta cambios automáticamente. Sin el NOTIFY, `supabase.rpc()` retorna `[]` sin error para funciones que PostgREST no conoce.
 
-14. **No pasar `JSON.stringify()` a parámetros JSONB de `supabase.rpc()`.** Supabase JS serializa automáticamente. `JSON.stringify()` causa doble serialización — Postgres recibe un scalar string en vez de un objeto/array.
+15. **No pasar `JSON.stringify()` a parámetros JSONB de `supabase.rpc()`.** Supabase JS serializa automáticamente. `JSON.stringify()` causa doble serialización — Postgres recibe un scalar string en vez de un objeto/array.
 
-15. **Auto-guardado de wizards con localStorage.** El wizard de cotizaciones guarda estado en `localStorage` con debounce de 500ms (key: `cotizacion_borrador_wizard` para nuevas, `cotizacion_editar_UUID` para edición). Se recupera al reabrir con banner de confirmación. Se limpia al guardar exitosamente en DB. Expira a las 24 horas. Siempre usar `try/catch` al acceder a `localStorage` (puede no estar disponible en modo incógnito).
+16. **Auto-guardado de wizards con localStorage.** El wizard de cotizaciones guarda estado en `localStorage` con debounce de 500ms (key: `cotizacion_borrador_wizard` para nuevas, `cotizacion_editar_UUID` para edición). Se recupera al reabrir con banner de confirmación. Se limpia al guardar exitosamente en DB. Expira a las 24 horas. Siempre usar `try/catch` al acceder a `localStorage` (puede no estar disponible en modo incógnito).
 
-15. **RPCs pesadas deben pre-computar en tablas de cache.** Las queries de oportunidades (recompra + cross-sell) tardan 1.5s+ en tiempo real. Se pre-computan en `oportunidades_recompra_cache` y `oportunidades_cross_sell_cache` via `refrescar_oportunidades()`. Las RPCs del dashboard leen del cache (~5ms).
+17. **RPCs pesadas deben pre-computar en tablas de cache.** Las queries de oportunidades (recompra + cross-sell) tardan 1.5s+ en tiempo real. Se pre-computan en `oportunidades_recompra_cache` y `oportunidades_cross_sell_cache` via `refrescar_oportunidades()`. Las RPCs del dashboard leen del cache (~5ms).
 
-16. **El cliente Supabase DEBE usar `cache: 'no-store'` en todas las llamadas fetch.** Next.js 14 cachea `fetch` por defecto en Server Components. `export const dynamic = 'force-dynamic'` solo evita pre-rendering estático pero NO desactiva el cache de fetch individual. Sin `cache: 'no-store'`, las llamadas `.rpc()` retornan datos cacheados indefinidamente después de la primera llamada, causando que mutaciones (crear, editar, cancelar cotizaciones) no se reflejen en la UI. Configurado en `src/lib/supabase.ts` con `global.fetch` override. Bug real: todas las operaciones de cotizaciones parecían no funcionar porque la lista seguía mostrando datos cacheados.
+18. **Filtrado por vendedor solo cuando el usuario es rep puro.** Si `roles.length === 1 && roles[0] === 'rep'`, pasar `p_vendedor_id` a las RPCs. Multi-rol siempre ve sin filtro porque tiene perspectiva de empresa. Nunca filtrar basándose en la "vista activa" del selector — esa solo afecta aterrizaje y sidebar.
+
+19. **Formateo de fechas tipo "mes"**: Usar `formatearMesAnio()` de `src/lib/textos/formato.ts`. NO usar `new Date(string).toLocaleDateString()` para strings tipo `"YYYY-MM-DD"` porque JavaScript los interpreta como UTC medianoche, lo que en zona horaria mexicana (UTC-6) retrocede al día anterior y muestra el mes equivocado. Regla general: si el dato representa un mes (no un instante), tratarlo como string y parsearlo, nunca convertirlo a `Date` para formatear.
+
+20. **Una sola fórmula de desabasto en todo el producto.** El criterio único es `stock_actual < demanda_diaria_promedio_90d × 21`. La columna `cantidad_minima` de la tabla `inventario` existe pero NO se debe usar como criterio en RPCs — es un campo legacy del seed. Las RPCs `get_items_desabasto_critico`, `get_sugerencias_compra`, y `get_items_proximos_desabasto` comparten esta fórmula exacta.
+
+21. **El módulo Compras acepta `?tab=pronostico|planeacion|compras` para deep-linking.** Solo entrada — el cambio manual de tab no actualiza la URL.
+
+22. **Búsqueda de productos usa `pg_trgm` para tolerar typos.** Extensión activada con índices GIN en `productos.sku` y `productos.nombre`. Threshold de similitud bajado a 0.2 dentro de la función. Para términos de 1-2 caracteres usa ILIKE como fallback. Limitación conocida: transposiciones de caracteres adyacentes (ej: "tonrillo") no se encuentran con el threshold actual.
+
+23. **Lead time es placeholder fijo de 14 días en V0.** Presente en `get_sugerencias_compra` y en las líneas JSONB de `generar_pos_sugeridas`. En V1 se calculará del historial real de POs por proveedor. La UI usa `?? 14` como fallback para POs creadas antes de este campo.
+
+24. **El cliente Supabase DEBE usar `cache: 'no-store'` en todas las llamadas fetch.** Next.js 14 cachea `fetch` por defecto en Server Components. `export const dynamic = 'force-dynamic'` solo evita pre-rendering estático pero NO desactiva el cache de fetch individual. Sin `cache: 'no-store'`, las llamadas `.rpc()` retornan datos cacheados indefinidamente después de la primera llamada, causando que mutaciones (crear, editar, cancelar cotizaciones) no se reflejen en la UI. Configurado en `src/lib/supabase.ts` con `global.fetch` override. Bug real: todas las operaciones de cotizaciones parecían no funcionar porque la lista seguía mostrando datos cacheados.
 
 ## Estructura del proyecto
 
@@ -158,8 +216,13 @@ src/
 │   ├── dashboard/
 │   │   ├── layout.tsx          — Sidebar fijo (slate-900) + área principal
 │   │   ├── page.tsx            — Resumen Ejecutivo (Server Component)
+│   │   ├── tablero-ventas/
+│   │   │   └── page.tsx        — Aterrizaje rep (placeholder Fase 7)
+│   │   ├── tablero-compras/
+│   │   │   └── page.tsx        — Tablero de compras (KPIs, desabasto, próximos)
 │   │   ├── compras/
-│   │   │   └── page.tsx        — Módulo de Compras (3 tabs: Pronóstico, Planeación, Compras)
+│   │   │   ├── page.tsx        — Módulo de Compras (3 tabs con ?tab= deep-linking)
+│   │   │   └── po/[id]/page.tsx — Detalle de PO sugerida (edición, aprobación, descarte)
 │   │   ├── clientes/
 │   │   │   ├── page.tsx        — Lista de clientes
 │   │   │   └── [id]/page.tsx   — Detalle de cliente
@@ -190,6 +253,22 @@ src/
 │       ├── ClientesEnRiesgo.tsx           ('use client', usa ClienteLink)
 │       ├── RendimientoVendedores.tsx      (usa VendedorLink)
 │       ├── AlertasMargen.tsx
+│       ├── tablero-compras/
+│       │   ├── HeaderTablero.tsx          — Saludo + conteos accionables con anchor links
+│       │   ├── KPIsCompradorCards.tsx     — 4 cards (2 reales + 2 placeholder)
+│       │   ├── SeccionPOsSugeridas.tsx     — POs persistentes por bodega (link a detalle individual)
+│       │   ├── BotonGenerarPos.tsx        — Botón de generación manual (client, roles comprador/dueno)
+│       │   ├── SeccionDesabastoCritico.tsx — Top 10 items en desabasto con tabla
+│       │   ├── SeccionProximosDesabasto.tsx — Top 10 próximos a desabasto
+│       │   └── SeccionAlertasInventario.tsx — 3 tarjetas: deadstock, sobrestock, sin movimiento
+│       ├── po-sugerida/
+│       │   ├── DetallePoSugerida.tsx      — Componente principal (client, edición + mutaciones)
+│       │   ├── HeaderPoSugerida.tsx       — Título, badges, timestamps, totales
+│       │   ├── BannerRevisor.tsx          — 5 estados de revisor con acciones
+│       │   ├── TablaLineasPo.tsx          — Tabla paginada (50/página) con buscador y edición inline
+│       │   ├── AgregarItemModal.tsx       — Modal de búsqueda de productos
+│       │   ├── AccionesPoSugerida.tsx     — Guardar/Aprobar/Descartar
+│       │   └── DescartarModal.tsx         — Confirmación con notas obligatorias
 │       ├── compras/
 │       │   ├── ComprasTabs.tsx            — Wrapper de tabs
 │       │   ├── TabPronostico.tsx          — Forecast con sparklines y filtros

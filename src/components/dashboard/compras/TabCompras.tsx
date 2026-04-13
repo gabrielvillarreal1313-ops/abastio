@@ -32,9 +32,10 @@ const BADGE_ESTADO: Record<string, { texto: string; clase: string }> = {
   desabasto: { texto: 'Desabasto', clase: 'text-red-700 bg-red-50' },
   ok: { texto: 'OK', clase: 'text-emerald-700 bg-emerald-50' },
   sobrestock: { texto: 'Sobrestock', clase: 'text-amber-700 bg-amber-50' },
+  sin_movimiento: { texto: 'Sin movimiento', clase: 'text-gray-600 bg-gray-100' },
 };
 
-type EstadoFiltro = 'todos' | 'desabasto' | 'ok' | 'sobrestock';
+type EstadoFiltro = 'todos' | 'desabasto' | 'ok' | 'sobrestock' | 'sin_movimiento';
 type SortKey = 'sku' | 'clase_abc' | 'cantidad_actual' | 'cantidad_a_pedir' | 'meses_suministro' | 'fecha_requerida';
 type SortDir = 'asc' | 'desc';
 
@@ -45,8 +46,8 @@ function valorSort(row: SugerenciaCompra, key: SortKey): number | string {
     case 'sku': return row.sku;
     case 'clase_abc': return ABC_ORD[row.clase_abc] ?? 4;
     case 'cantidad_actual': return row.cantidad_actual;
-    case 'cantidad_a_pedir': return row.cantidad_a_pedir;
-    case 'meses_suministro': return row.meses_de_suministro;
+    case 'cantidad_a_pedir': return row.cantidad_a_pedir ?? 0;
+    case 'meses_suministro': return row.meses_de_suministro ?? 0;
     case 'fecha_requerida': return row.fecha_requerida ?? 'z';
     default: return 0;
   }
@@ -148,6 +149,7 @@ export function TabCompras({ data }: Props) {
     desabasto: data.items.filter((s) => s.estado === 'desabasto').length,
     ok: data.items.filter((s) => s.estado === 'ok').length,
     sobrestock: data.items.filter((s) => s.estado === 'sobrestock').length,
+    sin_movimiento: data.items.filter((s) => s.estado === 'sin_movimiento').length,
   }), [data.items]);
 
   // ─── Selección ──────────────────────────────────────────────────────
@@ -201,6 +203,7 @@ export function TabCompras({ data }: Props) {
     { key: 'desabasto', label: `Desabasto (${conteos.desabasto})` },
     { key: 'ok', label: `OK (${conteos.ok})` },
     { key: 'sobrestock', label: `Sobrestock (${conteos.sobrestock})` },
+    { key: 'sin_movimiento', label: `Sin movimiento (${conteos.sin_movimiento})` },
   ];
 
   return (
@@ -306,6 +309,7 @@ export function TabCompras({ data }: Props) {
                     <td className="px-3 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
                     <td className="px-3 py-2">
                       <div className="font-medium text-gray-900 truncate max-w-[180px]" title={item.nombre_producto}>{item.nombre_producto}</div>
+                      <div className="text-[10px] text-gray-400">Lead time: {item.lead_time_dias ?? 14} días</div>
                       <div className="text-xs text-gray-400">{item.categoria}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(item.bodega_nombre)}</td>
@@ -316,7 +320,7 @@ export function TabCompras({ data }: Props) {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded ${badge.clase}`}>{badge.texto}</span>
                     </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
-                      {item.cantidad_a_pedir > 0 ? (
+                      {item.cantidad_a_pedir != null && item.cantidad_a_pedir > 0 ? (
                         <span className="text-gray-900 font-semibold">{formatUnidades(item.cantidad_a_pedir)}</span>
                       ) : (
                         <span className="text-gray-400">—</span>
@@ -331,13 +335,17 @@ export function TabCompras({ data }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
-                      <span className={
-                        item.meses_de_suministro < 1 ? 'text-red-600 font-medium'
-                          : item.meses_de_suministro < 2 ? 'text-amber-600'
-                          : 'text-gray-600'
-                      }>
-                        {item.meses_de_suministro > 0 ? `${item.meses_de_suministro.toFixed(1)}` : '0'}
-                      </span>
+                      {item.meses_de_suministro != null ? (
+                        <span className={
+                          item.meses_de_suministro < 1 ? 'text-red-600 font-medium'
+                            : item.meses_de_suministro < 2 ? 'text-amber-600'
+                            : 'text-gray-600'
+                        }>
+                          {item.meses_de_suministro > 0 ? item.meses_de_suministro.toFixed(1) : '0'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                   </tr>
                 );

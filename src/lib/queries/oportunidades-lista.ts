@@ -2,9 +2,13 @@
  * oportunidades-lista.ts — Query para la tabla de oportunidades por cliente.
  *
  * Retorna una fila por cliente con conteos y valores de recompra + cross-sell.
+ *
+ * Si el usuario logueado es rep puro (único rol = rep), filtra por su vendedor_id.
+ * Multi-rol siempre ve sin filtro (perspectiva de empresa).
  */
 
 import { supabase } from '@/lib/supabase';
+import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 
 export interface OportunidadCliente {
   cliente_id: number;
@@ -19,7 +23,23 @@ export interface OportunidadCliente {
 }
 
 export async function getListaOportunidades(): Promise<OportunidadCliente[]> {
-  const { data, error } = await supabase.rpc('get_lista_oportunidades');
+  // Determinar si hay que filtrar por vendedor (solo rep puro)
+  let vendedorId: number | null = null;
+  try {
+    const usuario = await getUsuarioActual();
+    if (usuario && usuario.roles.length === 1 && usuario.roles[0] === 'rep' && usuario.vendedorId !== null) {
+      vendedorId = usuario.vendedorId;
+    }
+  } catch {
+    // Si falla obtener usuario, continuar sin filtro
+  }
+
+  const params: Record<string, unknown> = {};
+  if (vendedorId !== null) {
+    params.p_vendedor_id = vendedorId;
+  }
+
+  const { data, error } = await supabase.rpc('get_lista_oportunidades', params);
 
   if (error) {
     throw new Error(`Error consultando lista de oportunidades: ${error.message}`);

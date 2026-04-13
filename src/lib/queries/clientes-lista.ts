@@ -3,9 +3,13 @@
  *
  * Retorna todos los clientes con al menos una transacción,
  * ordenados por ingresos 12 meses descendente.
+ *
+ * Si el usuario logueado es rep puro (único rol = rep), filtra por su vendedor_id.
+ * Multi-rol siempre ve sin filtro (perspectiva de empresa).
  */
 
 import { supabase } from '@/lib/supabase';
+import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 
 export interface ClienteLista {
   cliente_id: number;
@@ -22,7 +26,23 @@ export interface ClienteLista {
 }
 
 export async function getClientesLista(): Promise<ClienteLista[]> {
-  const { data, error } = await supabase.rpc('get_clientes_lista');
+  // Determinar si hay que filtrar por vendedor (solo rep puro)
+  let vendedorId: number | null = null;
+  try {
+    const usuario = await getUsuarioActual();
+    if (usuario && usuario.roles.length === 1 && usuario.roles[0] === 'rep' && usuario.vendedorId !== null) {
+      vendedorId = usuario.vendedorId;
+    }
+  } catch {
+    // Si falla obtener usuario (ej: no hay sesión), continuar sin filtro
+  }
+
+  const params: Record<string, unknown> = {};
+  if (vendedorId !== null) {
+    params.p_vendedor_id = vendedorId;
+  }
+
+  const { data, error } = await supabase.rpc('get_clientes_lista', params);
 
   if (error) {
     throw new Error(`Error consultando lista de clientes: ${error.message}`);

@@ -21,14 +21,20 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key'];
 
+function isValidTab(value: string | undefined): value is TabKey {
+  return value === 'pronostico' || value === 'planeacion' || value === 'compras';
+}
+
 interface Props {
   forecastData: ForecastData;
   planeacionData: PlaneacionData;
   sugerenciasData: SugerenciasCompraData;
+  /** Query param ?tab= para deep-linking. Solo se usa como valor inicial. */
+  tabInicial?: string;
 }
 
-export function ComprasTabs({ forecastData, planeacionData, sugerenciasData }: Props) {
-  const [tabActivo, setTabActivo] = useState<TabKey>('pronostico');
+export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tabInicial }: Props) {
+  const [tabActivo, setTabActivo] = useState<TabKey>(isValidTab(tabInicial) ? tabInicial : 'pronostico');
 
   return (
     <>

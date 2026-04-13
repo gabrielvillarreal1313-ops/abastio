@@ -8,9 +8,10 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ## Seguridad y acceso
 
-- **Autenticación de usuarios.** Diferido a V1. El dashboard actual es público (cualquiera con la URL puede ver). Implementar con Supabase Auth cuando tengamos primer cliente real. Estimación: 4-6 horas.
+- **Autenticación de usuarios.** EN PROGRESO — Fase 1 del pivot orientado al usuario operativo. Backend de identidad completado (tablas `usuarios`/`usuario_roles`, 9 cuentas de prueba con Supabase Auth, RPCs con filtro opcional por vendedor). UI de login y navegación role-aware pendiente. Nota histórica: originalmente diferido a V1.
 - **Row-level security (RLS) multi-tenant.** Diferido a V1. Actualmente la DB es single-tenant (una sola "empresa" = Ferretera del Bajío). Para servir múltiples clientes reales, agregar columna `empresa_id` a todas las tablas y políticas RLS. Estimación: 8-12 horas más refactor de queries.
 - **Manejo de roles y permisos** (dueño vs vendedor vs contador). Diferido a V2. Por ahora cualquier usuario autenticado ve todo.
+- **Asignación de compradores a bodegas específicas.** Diferido. El modelo de datos contempla esta posibilidad pero el filtro "Solo mis bodegas" que aparecerá en el módulo Compras será un placeholder hasta tener datos reales o decisión de producto. No requiere tabla nueva todavía.
 
 ## Integraciones con ERPs
 
@@ -58,6 +59,8 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Aprobación de descuentos por supervisor.** Diferido a V2. Workflow de aprobación cuando un vendedor aplica descuento mayor al umbral configurado.
 - **Análisis de dispersión de precios por SKU.** Diferido a V1. Precursor de pricing dinámico: mostrar en detalle de producto que al cliente A se le vende a $X-15% y al cliente B a $X+8% vs el precio promedio. Calculable con datos actuales pero diferido por prioridad.
 - **Auto-guardado de cotizaciones en DB (no solo localStorage).** Diferido a V2. Actualmente el auto-guardado del wizard usa localStorage del navegador, lo que no sincroniza entre dispositivos. Para V2, guardar borradores automáticamente en Supabase para que un vendedor pueda empezar una cotización en desktop y continuarla en tablet.
+- **Aplicación del filtro `p_vendedor_id` en RPCs adicionales (productos, kpis, ingresos mensuales, etc.) cuando el usuario es rep puro.** Diferido a Fase 7. En Fase 1 solo se aplicó a `clientes-lista` y `oportunidades-lista` para validar el patrón.
+- **Persistencia server-side de la "vista activa" del selector multi-rol.** Actualmente vive en `localStorage`, lo que no sincroniza entre dispositivos. Diferido a V1+ cuando haya usuarios reales que usen multi-dispositivo.
 
 ## Alertas de margen
 
@@ -81,6 +84,25 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Botón "Generar orden de compra" con write-back real al ERP.** Diferido a V1. Actualmente muestra un toast placeholder. Implementar creación de PO en SAP B1 / CONTPAQi vía API.
 - **Fill rate y rotación de inventario (inventory turns) por SKU en tab Planeación.** Diferido a V1. Métricas adicionales para evaluar eficiencia de inventario.
 - **Safety stock dinámico según nivel de servicio objetivo.** Diferido a V2. Actualmente el safety stock es fijo (7 días). Calcular dinámicamente basado en variabilidad de demanda y nivel de servicio configurable por cliente (ej: 95%, 99%).
+- **KPIs del comprador con datos reales (`valor_pos_aprobadas_mes`, `pos_pendientes_revision`, `skus_desabasto_mes_anterior`).** Diferido a Fase 4 (tracking de acciones) y al snapshot histórico de inventario que no existe en V0.
+- **Costo real por SKU para cálculo de capital atrapado en sobrestock.** Actualmente se usa `costo_unitario` de la tabla `productos`. Con ERPs reales, usar costo promedio ponderado del último lote recibido. Diferido a V1.
+- **Ventana configurable para cálculo de demanda en RPCs del Tablero de compras.** Actualmente fija a 90 días. Diferido si en pruebas con usuarios resulta que algunos verticales (ej: estacionales) necesitan ventanas distintas.
+- **Página de listado completo paginado de desabasto crítico (`/dashboard/tablero-compras/desabasto-critico`).** Hoy el Tablero muestra solo top 10 con un link que va a 404. Diferido a 2C o post-Fase 2.
+- **Página de listado completo paginado de próximos a desabasto (`/dashboard/tablero-compras/proximos-desabasto`).** Igual que la anterior.
+- **Lógica de mínimo configurable por el usuario / por SKU.** Cuando se conecten ERPs reales, algunos clientes van a querer override manual del mínimo calculado (ej: para SKUs estacionales o con compromisos contractuales). Diferido a V1+. Por ahora la fórmula `demanda × 21` es universal.
+- **Sincronización bidireccional del query param `?tab=` en el módulo Compras.** Hoy es solo entrada — cuando el usuario cambia de tab manualmente, la URL no se actualiza. Diferido si los usuarios piden poder copiar la URL del tab actual.
+- **Deep-linking a filtros del tab Compras desde el Tablero.** Hoy el botón "Revisar y aprobar" lleva a `/dashboard/compras?tab=compras` sin filtro de bodega, así que el usuario aplica el filtro manualmente. Diferido a polish o Fase 3.
+- **Drill-down de las tarjetas de alertas de inventario.** Hoy son informativas sin link. Si los compradores piden explorar la lista detallada de SKUs, construir páginas de detalle. Diferido a Fase 6 (polish del comprador).
+- **Costo unitario real por SKU para `valor_total_estimado` en POs sugeridas.** Hoy se usa `costo_unitario` de tabla `productos` que es dato del seed. Con ERPs reales, usar costo promedio ponderado del último lote recibido. Diferido a V1.
+- **Lock pesimista o optimista en edición concurrente de POs sugeridas.** Hoy si dos usuarios editan la misma PO, el segundo puede sobreescribir sin warning. En V0 hay un solo comprador. Diferido a V2.
+- **Auditoría de cambios a POs sugeridas (quién cambió qué cantidad).** Hoy `actualizar_lineas_po` reemplaza el array sin tracking. Diferido a V1 si los clientes piden auditabilidad.
+
+- **Persistencia server-side de borradores de POs sugeridas.** Hoy viven en localStorage. Diferido a V2 si los compradores editan POs desde múltiples dispositivos.
+- **Notificación al revisor original cuando otro intentó tomar la PO.** Hoy si Carlos intenta tomar la PO de María, ve "está siendo revisada por María" pero María no se entera. Diferido.
+- **Notificación al comprador cuando hay POs nuevas pendientes.** Hoy debe entrar al Tablero y hacer click en Generar. En V1, alertar vía email/push cuando se detecten items en desabasto sin PO en revisión.
+- **Auto-regeneración programada de POs sugeridas (cron diario).** Hoy es manual. En V1+, programar cron que regenere cada mañana.
+- **Threshold de similitud configurable para búsqueda typo-tolerant.** Hoy es 0.2 (fijo dentro de la función). Si compradores reales necesitan búsquedas más permisivas, permitir configurar. Diferido.
+- **Lead time real desde historial de POs del ERP.** Hoy es constante de 14 días. Reemplazar en V1 con cálculo `AVG(fecha_recepcion - fecha_orden)` por proveedor/SKU.
 
 ## Fintech y monetización expandida
 
@@ -109,15 +131,19 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 ## Calidad de datos y edge cases
 
 - **Selector de periodo en el dashboard** (mes actual, mes anterior, últimos 30 días, trimestre, año). Por ahora solo mostramos el mes más reciente con datos. Diferido a V1.
+- **Auditoría de uso de `toLocaleDateString` y `new Date(string)` en el codebase.** Encontrados 8 usos potencialmente afectados por el bug de timezone (cotización detalle, listas de clientes, deadstock, oportunidades, compras, wizard). Revisar caso por caso y migrar a parseo manual cuando se trate de meses o fechas sin componente horario. Diferido — fix puntual cada vez que se toque uno de esos archivos.
 
 ## Calidad del dataset sintético
 
+- **Regenerar el seed con distribución realista de inventario antes del demo a inversionistas.** Diferido. Hoy ~97% del inventario está en stock cero porque el generador no simula reposición. Distribución target para demos creíbles: ~70% saludable, ~15% sobrestock, ~10% próximo a desabasto, ~5% desabasto crítico. El código del producto es agnóstico al volumen, así que esto es solo trabajo en `scripts/seed/`. Crítico antes del demo.
 - **Los `margenObjetivo` y rangos de descuento en los perfiles de vendedores del seed son aspiracionales, no determinísticos.** El margen real resultante depende del mix de productos vendidos y las listas de precios de los clientes asignados. Si en el futuro queremos demos más punchy donde vendedores estrella realmente destaquen con 28%+ de margen, hay que implementar lógica en el generador de transacciones que ajuste activamente la selección de productos/clientes para cada vendedor según su perfil objetivo. Estimación: 2-3 horas.
+- **Columna `cantidad_clientes_similares` en `oportunidades_cross_sell_cache` está tipada como `text` cuando debería ser `integer`.** Deuda técnica preexistente, no afecta funcionalidad pero debería corregirse cuando se toque la generación del cache.
 
 ## Reglas arquitectónicas del proyecto
 
 - **Agregaciones siempre en Postgres, nunca en JavaScript.** Supabase tiene un límite default de 1000 filas por query con `.select()`. Traer filas individuales al cliente para agregarlas en JS produce datos silenciosamente incorrectos (solo se agregan las primeras 1000 filas sin warning). Todas las queries analíticas deben implementarse como RPC functions de Postgres y llamarse con `supabase.rpc()`. Esto aplica a todas las queries actuales y futuras del dashboard.
 - **Todo texto dinámico del dashboard (especialmente el que interpola números) debe pasar por `src/lib/textos/`.** Nunca usar `${n} palabras` directamente en JSX — usar `pluralizar()` o una función específica del callout. Esto previene bugs de concordancia gramatical en español (1 cliente vs 2 clientes, está vs están, etc.).
+- **Filtros y JOINs entre tablas relacionales usar siempre llaves enteras, nunca texto.** JOINs por texto son frágiles ante homónimos, errores ortográficos, y son lentos. Si una tabla denormaliza un nombre por conveniencia de display, bien — pero los filtros funcionales siempre por id.
 
 ## Insights por exhibir que el V0 actual diluye
 

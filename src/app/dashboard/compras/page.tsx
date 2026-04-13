@@ -1,6 +1,6 @@
 /**
  * Compras — Server Component que carga datos y delega a ComprasTabs (cliente).
- * Mismo patrón que app/dashboard/page.tsx: fetch en servidor, render en cliente.
+ * Acepta query param ?tab=pronostico|planeacion|compras para deep-linking.
  */
 
 import { getForecastSKUs } from '@/lib/queries/forecast-skus';
@@ -10,7 +10,11 @@ import { ComprasTabs } from '@/components/dashboard/compras/ComprasTabs';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ComprasPage() {
+export default async function ComprasPage({
+  searchParams,
+}: {
+  searchParams: { tab?: string };
+}) {
   const [forecastData, planeacionData, sugerenciasData] = await Promise.all([
     getForecastSKUs(),
     getPlaneacionInventario(),
@@ -31,6 +35,7 @@ export default async function ComprasPage() {
         forecastData={forecastData}
         planeacionData={planeacionData}
         sugerenciasData={sugerenciasData}
+        tabInicial={searchParams.tab}
       />
     </>
   );

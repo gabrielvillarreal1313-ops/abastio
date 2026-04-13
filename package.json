@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "npx tsx scripts/seed/index.ts"
+    "seed": "npx tsx scripts/seed/index.ts",
+    "seed:usuarios": "npx tsx scripts/seed/seed-usuarios.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.4.0",
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "dotenv": "^17.4.1",
     "next": "14.2.35",

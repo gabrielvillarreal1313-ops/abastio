@@ -71,3 +71,91 @@ export function formatCambioPct(valor: number): string {
   const signo = valor >= 0 ? '+' : '';
   return signo + valor.toFixed(1) + '%';
 }
+
+/**
+ * Formatea un mes a partir de un string "YYYY-MM-DD" o Date.
+ *
+ * NO usa `new Date(string).toLocaleDateString()` porque eso introduce
+ * bugs de zona horaria — "2026-04-01" se interpreta como UTC medianoche
+ * y al convertirse a hora local mexicana (UTC-6) retrocede al 31 de marzo.
+ * Esta función parsea año y mes directamente del string.
+ *
+ * @returns Mes y año en español: "abril 2026"
+ */
+export function formatearMesAnio(fecha: string | Date | null | undefined): string {
+  if (!fecha) return '';
+
+  let anio: number;
+  let mes: number; // 1-12
+
+  if (typeof fecha === 'string') {
+    const partes = fecha.slice(0, 10).split('-');
+    if (partes.length !== 3) return '';
+    anio = parseInt(partes[0], 10);
+    mes = parseInt(partes[1], 10);
+  } else {
+    anio = fecha.getFullYear();
+    mes = fecha.getMonth() + 1;
+  }
+
+  if (isNaN(anio) || isNaN(mes) || mes < 1 || mes > 12) return '';
+
+  const nombresMeses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+
+  return `${nombresMeses[mes - 1]} ${anio}`;
+}
+
+/**
+ * Retorna tiempo transcurrido desde una fecha como "hace 5 minutos".
+ * Usa Date para comparar instantes — esto NO sufre del bug de timezone porque
+ * no formateamos como string de fecha, solo calculamos diferencia en ms.
+ */
+export function tiempoRelativo(fecha: string | Date): string {
+  const ms = Date.now() - new Date(fecha).getTime();
+  const segundos = Math.floor(ms / 1000);
+  const minutos = Math.floor(segundos / 60);
+  const horas = Math.floor(minutos / 60);
+  const dias = Math.floor(horas / 24);
+
+  if (segundos < 60) return 'hace unos segundos';
+  if (minutos < 60) return `hace ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+  if (horas < 24) return `hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+  if (dias < 30) return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+  return 'hace más de un mes';
+}
+
+/**
+ * Formatea fecha + hora en español: "12 de abril, 2026 a las 14:30".
+ * Parsea componentes manualmente del string ISO para evitar bug de timezone.
+ */
+export function formatearFechaHora(fecha: string | Date | null | undefined): string {
+  if (!fecha) return '';
+
+  let anio: number, mes: number, dia: number, hora: number, minuto: number;
+
+  if (typeof fecha === 'string') {
+    const partes = fecha.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!partes) return '';
+    anio = parseInt(partes[1], 10);
+    mes = parseInt(partes[2], 10);
+    dia = parseInt(partes[3], 10);
+    hora = parseInt(partes[4], 10);
+    minuto = parseInt(partes[5], 10);
+  } else {
+    anio = fecha.getFullYear();
+    mes = fecha.getMonth() + 1;
+    dia = fecha.getDate();
+    hora = fecha.getHours();
+    minuto = fecha.getMinutes();
+  }
+
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+
+  return `${dia} de ${meses[mes - 1]}, ${anio} a las ${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
+}
