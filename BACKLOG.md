@@ -8,7 +8,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ## Seguridad y acceso
 
-- **Autenticación de usuarios.** EN PROGRESO — Fase 1 del pivot orientado al usuario operativo. Backend de identidad completado (tablas `usuarios`/`usuario_roles`, 9 cuentas de prueba con Supabase Auth, RPCs con filtro opcional por vendedor). UI de login y navegación role-aware pendiente. Nota histórica: originalmente diferido a V1.
+- ~~**Autenticación de usuarios.**~~ COMPLETADO — Fase 1 del pivot. Tablas `usuarios`/`usuario_roles`, 9 cuentas de prueba con Supabase Auth, UI de login, middleware de protección, sidebar dinámico por roles, filtrado automático para reps puros. Nota histórica: originalmente diferido a V1, se adelantó por el pivot al usuario operativo.
 - **Row-level security (RLS) multi-tenant.** Diferido a V1. Actualmente la DB es single-tenant (una sola "empresa" = Ferretera del Bajío). Para servir múltiples clientes reales, agregar columna `empresa_id` a todas las tablas y políticas RLS. Estimación: 8-12 horas más refactor de queries.
 - **Manejo de roles y permisos** (dueño vs vendedor vs contador). Diferido a V2. Por ahora cualquier usuario autenticado ve todo.
 - **Asignación de compradores a bodegas específicas.** Diferido. El modelo de datos contempla esta posibilidad pero el filtro "Solo mis bodegas" que aparecerá en el módulo Compras será un placeholder hasta tener datos reales o decisión de producto. No requiere tabla nueva todavía.
@@ -84,7 +84,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Botón "Generar orden de compra" con write-back real al ERP.** Diferido a V1. Actualmente muestra un toast placeholder. Implementar creación de PO en SAP B1 / CONTPAQi vía API.
 - **Fill rate y rotación de inventario (inventory turns) por SKU en tab Planeación.** Diferido a V1. Métricas adicionales para evaluar eficiencia de inventario.
 - **Safety stock dinámico según nivel de servicio objetivo.** Diferido a V2. Actualmente el safety stock es fijo (7 días). Calcular dinámicamente basado en variabilidad de demanda y nivel de servicio configurable por cliente (ej: 95%, 99%).
-- **KPIs del comprador con datos reales (`valor_pos_aprobadas_mes`, `pos_pendientes_revision`, `skus_desabasto_mes_anterior`).** Diferido a Fase 4 (tracking de acciones) y al snapshot histórico de inventario que no existe en V0.
+- ~~**KPIs del comprador con datos reales.**~~ COMPLETADO PARCIALMENTE en Fase 4A — `valor_pos_aprobadas_mes` y `pos_pendientes_revision` ahora usan datos reales desde `acciones_comprador` y `po_sugeridas`. Se agregó `tiempo_promedio_revision_horas` como 4º KPI. `skus_desabasto_mes_anterior` sigue diferido a V1 por requerir snapshot histórico de inventario que no existe en V0.
 - **Costo real por SKU para cálculo de capital atrapado en sobrestock.** Actualmente se usa `costo_unitario` de la tabla `productos`. Con ERPs reales, usar costo promedio ponderado del último lote recibido. Diferido a V1.
 - **Ventana configurable para cálculo de demanda en RPCs del Tablero de compras.** Actualmente fija a 90 días. Diferido si en pruebas con usuarios resulta que algunos verticales (ej: estacionales) necesitan ventanas distintas.
 - **Página de listado completo paginado de desabasto crítico (`/dashboard/tablero-compras/desabasto-critico`).** Hoy el Tablero muestra solo top 10 con un link que va a 404. Diferido a 2C o post-Fase 2.
@@ -102,6 +102,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Notificación al comprador cuando hay POs nuevas pendientes.** Hoy debe entrar al Tablero y hacer click en Generar. En V1, alertar vía email/push cuando se detecten items en desabasto sin PO en revisión.
 - **Auto-regeneración programada de POs sugeridas (cron diario).** Hoy es manual. En V1+, programar cron que regenere cada mañana.
 - **Threshold de similitud configurable para búsqueda typo-tolerant.** Hoy es 0.2 (fijo dentro de la función). Si compradores reales necesitan búsquedas más permisivas, permitir configurar. Diferido.
+- **Fallback para typos de transposición en búsqueda de productos.** `pg_trgm` no maneja bien transposiciones de caracteres adyacentes (ej: "tonrillo" no encuentra "tornillo"). Alternativas: agregar extensión `fuzzystrmatch` con distancia de Levenshtein como fallback, o diccionario de correcciones frecuentes. Diferido. La transposición es el typo humano más común.
 - **Lead time real desde historial de POs del ERP.** Hoy es constante de 14 días. Reemplazar en V1 con cálculo `AVG(fecha_recepcion - fecha_orden)` por proveedor/SKU.
 
 ## Fintech y monetización expandida
@@ -159,4 +160,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-11 (semana 5 completada — Sales Intelligence + cotizaciones)
+**Última actualización:** 2026-04-13 (Fase 4B completa — override editable de min/max con modal, bulk, historial polimórfico)

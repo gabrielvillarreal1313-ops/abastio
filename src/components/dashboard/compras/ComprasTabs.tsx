@@ -31,9 +31,11 @@ interface Props {
   sugerenciasData: SugerenciasCompraData;
   /** Query param ?tab= para deep-linking. Solo se usa como valor inicial. */
   tabInicial?: string;
+  /** ID del usuario logueado, necesario para el modal de min/max en Tab Planeación */
+  usuarioId: string;
 }
 
-export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tabInicial }: Props) {
+export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tabInicial, usuarioId }: Props) {
   const [tabActivo, setTabActivo] = useState<TabKey>(isValidTab(tabInicial) ? tabInicial : 'pronostico');
 
   return (
@@ -62,7 +64,7 @@ export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tab
 
       {/* Contenido del tab activo */}
       {tabActivo === 'pronostico' && <TabPronostico data={forecastData} />}
-      {tabActivo === 'planeacion' && <TabPlaneacion data={planeacionData} />}
+      {tabActivo === 'planeacion' && <TabPlaneacion data={planeacionData} usuarioId={usuarioId} />}
       {tabActivo === 'compras' && <TabCompras data={sugerenciasData} />}
     </>
   );

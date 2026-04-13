@@ -6,6 +6,7 @@
 import { getForecastSKUs } from '@/lib/queries/forecast-skus';
 import { getPlaneacionInventario } from '@/lib/queries/planeacion-inventario';
 import { getSugerenciasCompra } from '@/lib/queries/sugerencias-compra';
+import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 import { ComprasTabs } from '@/components/dashboard/compras/ComprasTabs';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +14,17 @@ export const dynamic = 'force-dynamic';
 export default async function ComprasPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const [forecastData, planeacionData, sugerenciasData] = await Promise.all([
+  const [forecastData, planeacionData, sugerenciasData, usuario] = await Promise.all([
     getForecastSKUs(),
     getPlaneacionInventario(),
     getSugerenciasCompra(),
+    getUsuarioActual(),
   ]);
+
+  const params = await searchParams;
+  const tab = typeof params.tab === 'string' ? params.tab : undefined;
 
   return (
     <>
@@ -35,7 +40,8 @@ export default async function ComprasPage({
         forecastData={forecastData}
         planeacionData={planeacionData}
         sugerenciasData={sugerenciasData}
-        tabInicial={searchParams.tab}
+        tabInicial={tab}
+        usuarioId={usuario?.id ?? ''}
       />
     </>
   );

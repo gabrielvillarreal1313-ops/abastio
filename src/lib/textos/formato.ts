@@ -159,3 +159,36 @@ export function formatearFechaHora(fecha: string | Date | null | undefined): str
 
   return `${dia} de ${meses[mes - 1]}, ${anio} a las ${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Formatea una duración en horas decimales a una cadena legible
+ * que adapta la unidad según la magnitud.
+ *
+ * - null → "—"
+ * - < 1 hora → "X min" (minutos enteros)
+ * - 1 a 24 horas → "X.Y hrs" (un decimal)
+ * - > 24 horas → "X.Y días" (un decimal)
+ *
+ * @example
+ * formatearDuracionHoras(null)  // "—"
+ * formatearDuracionHoras(0.05)  // "3 min"
+ * formatearDuracionHoras(0.5)   // "30 min"
+ * formatearDuracionHoras(1.5)   // "1.5 hrs"
+ * formatearDuracionHoras(23.9)  // "23.9 hrs"
+ * formatearDuracionHoras(25)    // "1.0 días"
+ * formatearDuracionHoras(72.5)  // "3.0 días"
+ */
+export function formatearDuracionHoras(horas: number | null): string {
+  if (horas === null || horas === undefined || Number.isNaN(horas)) {
+    return '—';
+  }
+  if (horas < 1) {
+    const minutos = Math.round(horas * 60);
+    return `${minutos} min`;
+  }
+  if (horas < 24) {
+    return `${horas.toFixed(1)} hrs`;
+  }
+  const dias = horas / 24;
+  return `${dias.toFixed(1)} días`;
+}

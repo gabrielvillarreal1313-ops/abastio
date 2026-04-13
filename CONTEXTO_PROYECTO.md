@@ -26,14 +26,15 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 ## Estado actual
 
-- **Fase:** V0 (MVP con datos sintéticos)
-- **Semana:** 5 completada (Sales Intelligence + cotizaciones implementados)
+- **Fase:** V0 (MVP con datos sintéticos) — Módulo del comprador completado (Fases 1, 2, 3, 4A del pivot)
+- **Última actividad:** Fase 4A completada (tracking de acciones del comprador, KPIs reales, página Mi historial)
+- **Siguiente:** Fase 4B-2 del pivot (refactor de RPCs para respetar overrides)
 - **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
-- **Rutas:** 13 páginas dinámicas (resumen, compras, clientes, productos, vendedores, oportunidades, cotización detalle, wizard cotización)
-- **RPCs:** 40+ funciones de Postgres (agregaciones + CRUD cotizaciones)
-- **Tablas:** 10 (6 seed + 2 cotizaciones + 2 cache de oportunidades)
+- **Rutas:** 16 páginas (login, resumen, tablero-ventas, tablero-compras, compras, PO detalle, clientes, productos, vendedores, oportunidades, cotizaciones)
+- **RPCs:** 59 funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas)
+- **Tablas:** 15 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador + 1 overrides min/max)
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
@@ -61,6 +62,26 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - **Tab Oportunidades en detalle de cliente**: recompras tardías + cross-sell por cliente, botón "Nueva cotización" que abre wizard pre-llenado
   - **Sección en Resumen Ejecutivo**: valor total de oportunidades detectadas + top 5 clientes por oportunidad
 - Anomalías deliberadas inyectadas en los datos para demostrar capacidad de detección (duplicados, margen erosionado en plomería, cliente en declive, deadstock)
+- Autenticación y roles operativos (Fase 1 del pivot):
+  - 9 usuarios de prueba con Supabase Auth y `@supabase/ssr` para manejo server-side de cookies
+  - 3 roles (`dueno`, `comprador`, `rep`) asignables múltiples por usuario, con jerarquía de aterrizaje dueno > comprador > rep
+  - Sidebar dinámico según roles, header con selector de vista para multi-rol, middleware protegiendo `/dashboard/*`
+  - Filtrado automático por vendedor en RPCs `get_clientes_lista` y `get_lista_oportunidades` cuando el usuario es rep puro
+- Tablero de compras (Fase 2 del pivot):
+  - Página de aterrizaje del comprador en `/dashboard/tablero-compras` con header personalizado y conteos accionables
+  - 4 KPI cards (desabasto crítico, capital atrapado, 2 placeholders para Fase 4), sección POs sugeridas por bodega
+  - Desabasto crítico (top 10), próximos a desabasto (horizonte 14 días), alertas de inventario (deadstock + sobrestock + sin movimiento)
+  - Fórmula unificada de desabasto en todo el producto: `stock < demanda_diaria_promedio_90d × 21`
+- POs sugeridas persistentes (Fase 3 del pivot):
+  - Tabla `po_sugeridas` con líneas como JSONB array editable, generación manual con botón en el Tablero
+  - Página de detalle `/dashboard/compras/po/[id]` con edición inline, paginación de 50, auto-guardado en localStorage
+  - Flujo anti-conflicto de revisor con 5 estados, modal de descarte con notas obligatorias
+  - Búsqueda typo-tolerant con `pg_trgm` (threshold 0.2), lead time placeholder (14 días) visible inline
+- Tracking de acciones del comprador (Fase 4A del pivot):
+  - Tabla `acciones_comprador` con log de eventos (toma de revisión, aprobación, descarte, modificación). Diseñada para ser extensible a otros tipos de acciones
+  - Hooks automáticos en las 4 RPCs existentes de POs que insertan una acción por cada mutación exitosa
+  - Página `/dashboard/compras/mi-historial` con filtros de fecha, tipo, y resumen del periodo
+  - KPIs del Tablero de compras actualizados con datos reales: `valor_pos_aprobadas_mes`, `pos_pendientes_revision`, y nuevo `tiempo_promedio_revision_horas`
 
 ## Decisiones tomadas
 
@@ -81,12 +102,29 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 | Abr 2026 | Precio default en cotización: último precio del cliente o precio de lista | Prioriza historial del cliente, fallback a catálogo |
 | Abr 2026 | Cache pre-computado para oportunidades | Queries de recompra y cross-sell tardan >8s en tiempo real. Pre-computar en tablas cache, refrescar con refrescar_oportunidades(). Patrón estándar de BI |
 | Abr 2026 | Auto-guardado de wizard con localStorage | Evita perder trabajo en progreso. No en DB para no crear borradores basura. Sincronización entre dispositivos diferida a V2 |
+| Abr 2026 | Pivot al usuario operativo | Resumen Ejecutivo estaba orientado al dueño. La propuesta de valor real es facilitar la vida al rep y al comprador. Reorientar alrededor de sus flujos diarios con "Tablero de ventas" y "Tablero de compras" como páginas de aterrizaje |
+| Abr 2026 | Jerarquía de aterrizaje dueno > comprador > rep | Multi-rol: usuario con varios roles aterriza en el de mayor jerarquía |
+| Abr 2026 | Nombres: "Tablero de ventas" / "Tablero de compras" | Originalmente "Mi día", pero ambiguo para multi-rol. "Tablero" comunica panel operativo |
+| Abr 2026 | Ventana de demanda: 90 días fijos | Ventana única para todas las RPCs del Tablero de compras. Consistencia entre "próximo a desabasto" y "sobrestock" |
+| Abr 2026 | Fórmula única de desabasto: `stock < demanda_diaria × 21` | Se unificaron dos fórmulas (una con `cantidad_minima` del seed, otra con demanda calculada) para evitar drift entre módulos |
+| Abr 2026 | POs sugeridas: generación manual, no automática | Botón visible para comprador/dueno, con indicador "última generación hace X". Evita que el comprador vea datos cambiando sin su acción |
+| Abr 2026 | Anti-conflicto de revisor en POs sugeridas | El `comprador_id_revisor` solo se asigna vía `tomar_revision_po`, nunca automáticamente. No se sobreescribe si otro usuario ya es revisor |
+| Abr 2026 | `acciones_comprador` como única fuente de verdad para métricas de tiempo del comprador | Evita duplicación de timestamps en tablas de dominio. Single source of truth facilita agregaciones consistentes y extensibilidad a nuevos tipos de acción sin cambiar el modelo |
+| Abr 2026 | `min_max_overrides` guarda solo el estado vigente, no el historial | El historial se deriva de `acciones_comprador` filtrando por `entidad_tipo = 'min_max_override'`. Mantiene una sola fuente de verdad consistente con la regla 25, evita drift entre tablas, y mantiene `min_max_overrides` chica y rápida para lookups en las RPCs de cálculo |
+| Abr 2026 | Override es por par `(producto_id, bodega_id)`, no global por producto | Un producto puede tener distinto comportamiento de inventario en León vs Querétaro (distintas demandas, distintas restricciones operativas). Granularidad item-bodega es consistente con el resto del modelo de datos |
+| Abr 2026 | Override de min/max es la verdad operativa (Camino B) | Las RPCs de cálculo de inventario respetan el override cuando existe vía COALESCE. Un override personalizado de mínimo cambia qué items aparecen en desabasto crítico, qué POs se sugieren, y los valores de la tabla de planeación. Esto materializa el principio de que las decisiones del comprador mueven la operación, no son cosméticas |
+| Abr 2026 | Fórmula de "Recomendado" unificada a ventana operacional de 90 días | Antes existían dos fórmulas: una con historial completo (Tab Planeación) y otra con 90 días (RPCs operacionales). Esto creaba incoherencia entre lo que el modal mostraría como recomendado y lo que el sistema usaba para detectar desabasto. La unificación a 90 días refleja la realidad operativa reciente, que es lo que importa para las decisiones diarias del comprador, y elimina la posibilidad de que el modal de min/max contradiga al resto del producto |
+| Abr 2026 | Modal de override sigue patrón "recomendación + override + historia" tipo Recurrency | Tres opciones de selección con justificación visible (popover de fórmula). El historial vive embebido en el mismo modal, no en página separada. Esto convierte el modal en una herramienta educativa: el comprador no solo ajusta valores, entiende por qué el sistema recomendó lo que recomendó y qué ha pasado antes con ese ítem |
+| Abr 2026 | POs en revisión se conservan al regenerar | `generar_pos_sugeridas()` solo elimina POs pendientes sin revisor. Protege trabajo en progreso |
+| Abr 2026 | Paginación de POs: 50 items por página en detalle | POs del seed actual tienen 750+ líneas. Paginación con buscador inline por simplicidad |
 
 ## Cosas diferidas
 
 Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, V2, V3+). Highlights:
-- Autenticación y multi-tenant (V1)
+- Multi-tenant con RLS (V1)
 - Integraciones reales con ERPs (V1-V3)
+- ~~KPIs del comprador con datos reales~~ — Fase 4A completada (parcial: `skus_desabasto_mes_anterior` sigue diferido)
+- Lead time real desde historial de POs del ERP (V1)
 - Mobile responsive (V1)
 - WhatsApp agent (V2)
 - Fintech/lending (V3+)
@@ -119,12 +157,45 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 **Fase 3 — POs sugeridas persistentes (completada):**
 - 3A: Backend — tabla `po_sugeridas`, 7 RPCs (generar, listar, detalle, tomar revisión, aprobar, descartar, actualizar líneas)
-- 3B: Página de detalle — edición de cantidades, paginación 50, auto-guardado, flujo revisor anti-conflicto, aprobar/descartar
+- 3B: Página de detalle — edición inline, paginación 50, auto-guardado, flujo revisor anti-conflicto
 - 3C-1: Integración Tablero — POs persistentes, botón generar manual, link a detalle individual
-- 3C-2: Búsqueda typo-tolerant con pg_trgm, lead time placeholder (14 días) visible en tab Compras y detalle PO
+- 3C-2: Búsqueda typo-tolerant con pg_trgm, lead time placeholder (14 días) visible inline
 
-**Siguiente:**
+**Fase 4A — Tracking de acciones del comprador (completada):**
+- Tabla `acciones_comprador` con hooks automáticos en 4 RPCs de POs
+- Página Mi historial con filtros y resumen del periodo
+- KPIs del Tablero con datos reales (3 de 4 activos, 1 placeholder documentado)
+
+**Fase 4B-1 — Fundación de overrides de min/max (completada):**
+- Tabla `min_max_overrides` con constraints (UNIQUE por par, CHECK min≤max, notas obligatorias para personalizado)
+- 4 RPCs nuevas: `get_min_max_override`, `upsert_min_max_override`, `bulk_aplicar_recomendados`, `_calcular_recomendados`
+- CHECK constraints de `acciones_comprador` ampliados para aceptar `min_max_override`
+- Wrapper TypeScript con tipos y guards defensivos
+- Tabla vacía intencionalmente — las RPCs de cálculo no la consultan hasta 4B-2
+
+**Fase 4B-2 — Refactor de RPCs para respetar overrides (completada):**
+- Las 4 RPCs de cálculo de inventario ahora hacen LEFT JOIN con `min_max_overrides` y usan COALESCE
+- Snapshots pre/post coinciden bit por bit (tabla vacía = comportamiento idéntico)
+- Test funcional: override con mínimo 99999 hace aparecer item saludable en desabasto crítico
+
+**Fase 4B-2.5 — Unificación de fórmula a ventana operacional de 90 días (completada):**
+- `_calcular_recomendados` y `get_planeacion_inventario` ahora usan ventana de 90 días, igual que las RPCs operacionales
+- 98.3% de SKUs cambiaron sus valores recomendados (esperado: la ventana reciente refleja mejor la demanda actual)
+- RPCs operacionales no cambiaron (misma fórmula desde antes)
+
+**Fase 4B-3 — UI del modal min/max (completada):**
+- Modal de override en Tab Planeación con tres opciones (Recomendado / Actual ERP / Personalizado)
+- Popover de fórmula expandida con valores reales del item (educativo, no documentación externa)
+- Historial embebido en el modal mostrando todos los cambios anteriores del par producto-bodega
+- Selección múltiple en la tabla con bulk de "Aplicar recomendados"
+- Integración con Mi historial: las acciones de override aparecen junto con las de POs, filtrables por tipo
+- Las 4 RPCs de cálculo de inventario respetan los overrides automáticamente (Camino B)
+
+**Fase 4B completa (4B-1 + 4B-2 + 4B-2.5 + 4B-3)**
+
+**Post-Fase 4B:**
 - Polish visual y UX del V0
+- Regenerar seed con distribución realista de inventario antes de demo
 - Preparar deck/demo para inversionistas
 - Investigación de API SAP B1 diferida hasta tener primer cliente real
 
@@ -173,4 +244,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-11 (semana 5 completada — Sales Intelligence + cotizaciones)
+**Última actualización:** 2026-04-13 (Fase 4B completa — override editable de min/max con modal, bulk, e integración con Mi historial)

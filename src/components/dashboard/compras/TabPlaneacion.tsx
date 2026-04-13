@@ -2,16 +2,21 @@
 
 /**
  * TabPlaneacion — Tabla de planeación de inventario min/max por SKU × bodega.
- * Incluye modal de detalle de cálculo, filtros, búsqueda, y sorting.
+ * Incluye modal de detalle de cálculo, modal de override min/max,
+ * checkboxes de selección múltiple, barra de acciones bulk, filtros, y sorting.
  */
 
 import { useState, useMemo, useCallback } from 'react';
 import type { PlaneacionData, PlaneacionSKU } from '@/lib/queries/planeacion-inventario';
+import { bulkAplicarRecomendados } from '@/lib/queries/min-max-overrides';
 import { formatUnidades } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
+import { ModalMinMax } from '@/components/dashboard/compras/planeacion/ModalMinMax';
+import { BarraSeleccionMultiple } from '@/components/dashboard/compras/planeacion/BarraSeleccionMultiple';
 
 interface Props {
   data: PlaneacionData;
+  usuarioId: string;
 }
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
@@ -30,6 +35,18 @@ const BADGE_ABC: Record<string, string> = {
 const BADGE_ESTADO: Record<string, string> = {
   ok: 'text-emerald-700 bg-emerald-50',
   revisar: 'text-red-700 bg-red-50',
+};
+
+const BADGE_OVERRIDE: Record<string, string> = {
+  recomendado: 'text-blue-700 bg-blue-50',
+  personalizado: 'text-purple-700 bg-purple-50',
+  actual_erp: 'text-gray-600 bg-gray-50',
+};
+
+const LABEL_OVERRIDE: Record<string, string> = {
+  recomendado: 'Rec.',
+  personalizado: 'Custom',
+  actual_erp: 'ERP',
 };
 
 type EstadoFiltro = 'todos' | 'ok' | 'revisar';
@@ -56,6 +73,10 @@ function valorSort(row: PlaneacionSKU, key: SortKey): number | string {
 function bodegaCorta(nombre: string): string {
   if (!nombre) return '';
   return nombre.replace(/^Bodega (Central )?/, '');
+}
+
+function itemKey(row: PlaneacionSKU): string {
+  return `${row.sku}__${row.bodega_id}`;
 }
 
 // ─── Sub-componentes ────────────────────────────────────────────────────────
@@ -158,15 +179,53 @@ function ModalCalculo({ row, onClose }: { row: PlaneacionSKU; onClose: () => voi
   );
 }
 
+// ─── Diálogo de confirmación bulk ────────────────────────────────────────────
+
+function DialogoConfirmacionBulk({
+  cantidad,
+  onConfirmar,
+  onCancelar,
+}: {
+  cantidad: number;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancelar}>
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Confirmar acción</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Vas a aplicar los valores recomendados del sistema a <strong>{conConteo(cantidad, 'ítem', 'ítems')}</strong>.
+          Esta acción quedará registrada en tu historial.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onCancelar} className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900">Cancelar</button>
+          <button onClick={onConfirmar} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-md hover:bg-slate-800">
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente principal ───────────────────────────────────────────────────
 
-export function TabPlaneacion({ data }: Props) {
+export function TabPlaneacion({ data, usuarioId }: Props) {
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>('todos');
   const [filtroBodega, setFiltroBodega] = useState('Todas');
   const [busqueda, setBusqueda] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [modalRow, setModalRow] = useState<PlaneacionSKU | null>(null);
+
+  // Modal de override
+  const [overrideRow, setOverrideRow] = useState<PlaneacionSKU | null>(null);
+
+  // Selección múltiple
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [bulkCargando, setBulkCargando] = useState(false);
+  const [dialogoBulk, setDialogoBulk] = useState(false);
 
   const toggleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
@@ -212,6 +271,67 @@ export function TabPlaneacion({ data }: Props) {
     ok: data.skus.filter((s) => s.estado === 'ok').length,
     revisar: data.skus.filter((s) => s.estado === 'revisar').length,
   }), [data.skus]);
+
+  // ─── Selección múltiple ─────────────────────────────────────────────────
+
+  const todosVisiblesSeleccionados = useMemo(() => {
+    if (skusFiltrados.length === 0) return false;
+    return skusFiltrados.every((r) => seleccionados.has(itemKey(r)));
+  }, [skusFiltrados, seleccionados]);
+
+  function toggleSeleccion(row: PlaneacionSKU) {
+    const key = itemKey(row);
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function toggleTodosVisibles() {
+    if (todosVisiblesSeleccionados) {
+      // Deseleccionar solo los visibles
+      setSeleccionados((prev) => {
+        const next = new Set(prev);
+        for (const row of skusFiltrados) {
+          next.delete(itemKey(row));
+        }
+        return next;
+      });
+    } else {
+      // Seleccionar todos los visibles
+      setSeleccionados((prev) => {
+        const next = new Set(prev);
+        for (const row of skusFiltrados) {
+          next.add(itemKey(row));
+        }
+        return next;
+      });
+    }
+  }
+
+  async function handleBulkRecomendados() {
+    setDialogoBulk(false);
+    setBulkCargando(true);
+
+    try {
+      const pares = Array.from(seleccionados).map((key) => {
+        const [producto_id, bodega_id_str] = key.split('__');
+        return { producto_id, bodega_id: Number(bodega_id_str) };
+      });
+
+      await bulkAplicarRecomendados(pares, usuarioId);
+
+      // Regla 13: refrescar con window.location.href
+      window.location.href = window.location.href;
+    } catch {
+      setBulkCargando(false);
+    }
+  }
 
   function SortableHeader({ label, colKey, align }: { label: string; colKey: SortKey; align?: 'left' | 'right' | 'center' }) {
     const activo = sortKey === colKey;
@@ -275,76 +395,136 @@ export function TabPlaneacion({ data }: Props) {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${seleccionados.size > 0 ? 'mb-16' : ''}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
-                <th className="px-4 py-2.5 font-medium"><SortableHeader label="SKU" colKey="sku" /></th>
+                <th className="px-3 py-2.5 font-medium w-8">
+                  <input
+                    type="checkbox"
+                    checked={todosVisiblesSeleccionados && skusFiltrados.length > 0}
+                    onChange={toggleTodosVisibles}
+                    className="accent-slate-900 w-3.5 h-3.5"
+                    title="Seleccionar todos los visibles"
+                  />
+                </th>
+                <th className="px-3 py-2.5 font-medium"><SortableHeader label="SKU" colKey="sku" /></th>
                 <th className="px-3 py-2.5 font-medium">Producto</th>
                 <th className="px-3 py-2.5 font-medium">Bodega</th>
                 <th className="px-3 py-2.5 font-medium"><SortableHeader label="Clase" colKey="clase_abc" align="center" /></th>
                 <th className="px-3 py-2.5 font-medium text-center">Estado</th>
                 <th className="px-3 py-2.5 font-medium"><SortableHeader label="Actual" colKey="cantidad_actual" align="right" /></th>
-                {/* Mínimo dinámico */}
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Mín. actual" colKey="min_actual" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Mín. rec." colKey="min_recomendado" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Δ%" colKey="delta_min" align="right" /></th>
-                {/* Máximo dinámico */}
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Máx. actual" colKey="max_actual" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Máx. rec." colKey="max_recomendado" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Δ%" colKey="delta_max" align="right" /></th>
-                <th className="px-3 py-2.5 font-medium text-right">Lead time</th>
+                <th className="px-3 py-2.5 font-medium text-center">Min/Max</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {skusFiltrados.map((row) => (
-                <tr key={`${row.sku}-${row.bodega_nombre}`} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-2 font-mono text-xs text-gray-500">{row.sku}</td>
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-gray-900 truncate max-w-[180px]" title={row.nombre_producto}>{row.nombre_producto}</div>
-                    <div className="text-xs text-gray-400">{row.categoria}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(row.bodega_nombre)}</td>
-                  <td className="px-3 py-2 text-center">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${BADGE_ABC[row.clase_abc]}`}>{row.clase_abc}</span>
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${BADGE_ESTADO[row.estado]}`}>
-                      {row.estado === 'ok' ? 'OK' : 'Revisar'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.cantidad_actual)}</td>
-                  {/* Mínimo */}
-                  <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.min_actual)}</td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
-                      <span className="text-gray-900 font-medium">{formatUnidades(row.min_recomendado)}</span>
-                      <button onClick={() => setModalRow(row)} className="text-gray-400 hover:text-slate-700" title="Ver detalle del cálculo">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
+              {skusFiltrados.map((row) => {
+                const key = itemKey(row);
+                const seleccionado = seleccionados.has(key);
+                return (
+                  <tr key={key} className={`transition-colors ${seleccionado ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() => toggleSeleccion(row)}
+                        className="accent-slate-900 w-3.5 h-3.5"
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-gray-500">{row.sku}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-gray-900 truncate max-w-[180px]" title={row.nombre_producto}>{row.nombre_producto}</div>
+                      <div className="text-xs text-gray-400">{row.categoria}</div>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(row.bodega_nombre)}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${BADGE_ABC[row.clase_abc]}`}>{row.clase_abc}</span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${BADGE_ESTADO[row.estado]}`}>
+                        {row.estado === 'ok' ? 'OK' : 'Revisar'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.cantidad_actual)}</td>
+                    <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.min_actual)}</td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="text-gray-900 font-medium">{formatUnidades(row.min_recomendado)}</span>
+                        <button onClick={() => setModalRow(row)} className="text-gray-400 hover:text-slate-700" title="Ver detalle del cálculo">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap"><DeltaPct valor={row.delta_min_pct} /></td>
+                    <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.max_actual)}</td>
+                    <td className="px-2 py-2 text-right text-gray-900 font-medium whitespace-nowrap">{formatUnidades(row.max_recomendado)}</td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap"><DeltaPct valor={row.delta_max_pct} /></td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => setOverrideRow(row)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                        title="Configurar mínimos y máximos"
+                      >
+                        {row.tiene_override && row.tipo_override ? (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${BADGE_OVERRIDE[row.tipo_override] ?? ''}`}>
+                            {LABEL_OVERRIDE[row.tipo_override] ?? row.tipo_override}
+                          </span>
+                        ) : (
+                          'Min/Max'
+                        )}
                       </button>
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap"><DeltaPct valor={row.delta_min_pct} /></td>
-                  {/* Máximo */}
-                  <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(row.max_actual)}</td>
-                  <td className="px-2 py-2 text-right text-gray-900 font-medium whitespace-nowrap">{formatUnidades(row.max_recomendado)}</td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap"><DeltaPct valor={row.delta_max_pct} /></td>
-                  <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap" title="Lead time estimado — se calculará automáticamente con datos reales del ERP">
-                    14 días
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal de detalle */}
+      {/* Modal de detalle de cálculo */}
       {modalRow && <ModalCalculo row={modalRow} onClose={() => setModalRow(null)} />}
+
+      {/* Modal de override min/max */}
+      {overrideRow && (
+        <ModalMinMax
+          productoId={overrideRow.sku}
+          bodegaId={overrideRow.bodega_id}
+          productoNombre={overrideRow.nombre_producto}
+          bodegaNombre={overrideRow.bodega_nombre}
+          productoSku={overrideRow.sku}
+          usuarioId={usuarioId}
+          abierto={true}
+          onCerrar={() => setOverrideRow(null)}
+        />
+      )}
+
+      {/* Barra de selección múltiple */}
+      <BarraSeleccionMultiple
+        cantidadSeleccionados={seleccionados.size}
+        onAplicarRecomendados={() => setDialogoBulk(true)}
+        onDescartarSeleccion={() => setSeleccionados(new Set())}
+        cargando={bulkCargando}
+      />
+
+      {/* Diálogo de confirmación bulk */}
+      {dialogoBulk && (
+        <DialogoConfirmacionBulk
+          cantidad={seleccionados.size}
+          onConfirmar={handleBulkRecomendados}
+          onCancelar={() => setDialogoBulk(false)}
+        />
+      )}
     </div>
   );
 }

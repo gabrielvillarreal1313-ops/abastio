@@ -1,11 +1,11 @@
 /**
  * KPIsCompradorCards — Grid de 4 KPIs para el Tablero de compras.
- * Reutiliza KPICard existente. Los campos placeholder se muestran como "—".
+ * Reutiliza KPICard existente. Fase 4A: datos reales desde acciones_comprador.
  * Server Component.
  */
 
 import { KPICard } from '@/components/dashboard/KPICard';
-import { formatMXNCorto, formatUnidades } from '@/lib/textos/formato';
+import { formatMXNCorto, formatUnidades, formatearDuracionHoras } from '@/lib/textos/formato';
 import type { KpisComprador } from '@/lib/queries/kpis-comprador';
 
 interface Props {
@@ -32,25 +32,19 @@ export function KPIsCompradorCards({ kpis }: Props) {
 
       <KPICard
         label="POs aprobadas este mes"
-        value={kpis.valor_pos_aprobadas_mes != null
-          ? formatMXNCorto(kpis.valor_pos_aprobadas_mes)
-          : '—'
-        }
-        subtitle={kpis.valor_pos_aprobadas_mes != null
-          ? undefined
-          : 'Se activa con tracking (Fase 4)'
+        value={formatMXNCorto(kpis.valor_pos_aprobadas_mes)}
+        subtitle={kpis.pos_pendientes_revision > 0
+          ? `${formatUnidades(kpis.pos_pendientes_revision)} pendientes de revisar`
+          : 'Sin POs pendientes'
         }
       />
 
       <KPICard
-        label="POs pendientes de revisar"
-        value={kpis.pos_pendientes_revision != null
-          ? formatUnidades(kpis.pos_pendientes_revision)
-          : '—'
-        }
-        subtitle={kpis.pos_pendientes_revision != null
-          ? undefined
-          : 'Se activa con tracking (Fase 4)'
+        label="Tiempo promedio de revisión"
+        value={formatearDuracionHoras(kpis.tiempo_promedio_revision_horas)}
+        subtitle={kpis.tiempo_promedio_revision_horas != null
+          ? 'De toma a decisión este mes'
+          : 'Sin POs cerradas este mes'
         }
       />
     </div>
