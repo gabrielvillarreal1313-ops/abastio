@@ -37,17 +37,6 @@ const BADGE_ESTADO: Record<string, string> = {
   revisar: 'text-red-700 bg-red-50',
 };
 
-const BADGE_OVERRIDE: Record<string, string> = {
-  recomendado: 'text-blue-700 bg-blue-50',
-  personalizado: 'text-purple-700 bg-purple-50',
-  actual_erp: 'text-gray-600 bg-gray-50',
-};
-
-const LABEL_OVERRIDE: Record<string, string> = {
-  recomendado: 'Rec.',
-  personalizado: 'Custom',
-  actual_erp: 'ERP',
-};
 
 type EstadoFiltro = 'todos' | 'ok' | 'revisar';
 type SortKey = 'sku' | 'clase_abc' | 'min_actual' | 'min_recomendado' | 'delta_min' | 'max_actual' | 'max_recomendado' | 'delta_max' | 'cantidad_actual';
