@@ -25,7 +25,7 @@ export function KPICard({ label, value, subtitle, changePct, changeLabel }: KPIC
       <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
       <p className="text-2xl font-semibold text-gray-900 tracking-tight">{value}</p>
       {subtitle && (
-        <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
       )}
       {hasChange && (
         <div className="flex items-center gap-1.5 mt-2">
@@ -39,7 +39,7 @@ export function KPICard({ label, value, subtitle, changePct, changeLabel }: KPIC
             {formatCambioPct(changePct)}
           </span>
           {changeLabel && (
-            <span className="text-xs text-gray-400">{changeLabel}</span>
+            <span className="text-xs text-gray-500">{changeLabel}</span>
           )}
         </div>
       )}

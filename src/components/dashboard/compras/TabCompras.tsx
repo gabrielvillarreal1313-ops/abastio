@@ -309,7 +309,7 @@ export function TabCompras({ data }: Props) {
                     <td className="px-3 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
                     <td className="px-3 py-2">
                       <div className="font-medium text-gray-900 truncate max-w-[180px]" title={item.nombre_producto}>{item.nombre_producto}</div>
-                      <div className="text-[10px] text-gray-400">Lead time: {item.lead_time_dias ?? 14} días</div>
+                      <div className="text-[10px] text-gray-500">Lead time: {item.lead_time_dias ?? 14} días</div>
                       <div className="text-xs text-gray-400">{item.categoria}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(item.bodega_nombre)}</td>

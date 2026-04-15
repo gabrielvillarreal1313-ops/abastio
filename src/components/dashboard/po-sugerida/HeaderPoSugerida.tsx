@@ -35,7 +35,7 @@ export function HeaderPoSugerida({ po, cantidadItemsActual, valorTotalActual }: 
   return (
     <div className="mb-6">
       <h1 className="text-2xl font-semibold text-gray-900">
-        PO sugerida — {po.bodega_nombre}
+        Orden de compra sugerida — {po.bodega_nombre}
       </h1>
       <div className="flex items-center gap-2 mt-2 flex-wrap">
         <span className={`text-xs font-medium px-2 py-0.5 rounded border ${badgeEstado.clase}`}>

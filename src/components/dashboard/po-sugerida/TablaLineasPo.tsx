@@ -195,7 +195,7 @@ function FilaLinea({ linea, puedeEditar, inputRef, onKeyDown, onCantidadChange, 
       </td>
       <td className="px-3 py-2 max-w-[180px]">
         <div className="text-gray-900 truncate">{linea.nombre_producto}</div>
-        <div className="text-[10px] text-gray-400">Lead time: {linea.lead_time_dias ?? 14} días</div>
+        <div className="text-[10px] text-gray-500">Lead time: {linea.lead_time_dias ?? 14} días</div>
       </td>
       <td className="px-2 py-2 text-right text-gray-500 tabular-nums text-xs">{formatUnidades(linea.stock_actual)}</td>
       <td className="px-2 py-2 text-right text-gray-500 tabular-nums text-xs">{formatUnidades(linea.minimo_recomendado)}</td>

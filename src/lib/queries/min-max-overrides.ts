@@ -1,30 +1,18 @@
 /**
- * min-max-overrides.ts — Operaciones sobre overrides de min/max por par producto-bodega.
+ * min-max-overrides.ts — Operaciones de override de min/max.
  *
- * Fase 4B-1: infraestructura backend. La tabla existe pero las RPCs de cálculo
- * de inventario aún no la consultan (eso llega en 4B-2).
+ * Refactor 4B-refactor-1: escribe directamente en inventario.cantidad_minima/maxima.
+ * El historial de cambios vive en acciones_comprador con entidad_tipo = 'inventario'.
  */
 
 import { supabase } from '@/lib/supabase';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
-export interface MinMaxOverride {
-  id: string;
-  tipo_seleccion: 'recomendado' | 'actual_erp' | 'personalizado';
-  minimo: number;
-  maximo: number;
-  notas: string | null;
-  usuario_id: string;
-  usuario_nombre: string;
-  creado_en: string;
-  actualizado_en: string;
-}
-
 export interface UpsertMinMaxParams {
   producto_id: string;
   bodega_id: number;
-  tipo_seleccion: 'recomendado' | 'actual_erp' | 'personalizado';
+  tipo_seleccion: 'recomendado' | 'personalizado';
   minimo: number;
   maximo: number;
   notas: string | null;
@@ -41,46 +29,14 @@ export interface BulkResultado {
   errores: number;
 }
 
-// ─── Queries ────────────────────────────────────────────────────────────────
+// ─── Mutations ──────────────────────────────────────────────────────────────
 
 /**
- * Lee el override vigente para un par producto-bodega.
- * Retorna null si no existe override.
+ * Aplica un override de min/max escribiendo directamente en inventario.
+ * Registra la acción en acciones_comprador.
  */
-export async function getMinMaxOverride(
-  productoId: string,
-  bodegaId: number
-): Promise<MinMaxOverride | null> {
-  const { data, error } = await supabase.rpc('get_min_max_override', {
-    p_producto_id: productoId,
-    p_bodega_id: bodegaId,
-  });
-
-  if (error) throw new Error(`Error consultando override: ${error.message}`);
-
-  if (!data || (Array.isArray(data) && data.length === 0)) return null;
-
-  const r: Record<string, unknown> = Array.isArray(data) ? data[0] : data;
-
-  return {
-    id: (r.id as string) ?? '',
-    tipo_seleccion: ((r.tipo_seleccion as string) ?? 'recomendado') as MinMaxOverride['tipo_seleccion'],
-    minimo: Number(r.minimo) || 0,
-    maximo: Number(r.maximo) || 0,
-    notas: (r.notas as string) ?? null,
-    usuario_id: (r.usuario_id as string) ?? '',
-    usuario_nombre: (r.usuario_nombre as string) ?? '',
-    creado_en: (r.creado_en as string) ?? '',
-    actualizado_en: (r.actualizado_en as string) ?? '',
-  };
-}
-
-/**
- * Crea o actualiza un override. Registra la acción en acciones_comprador.
- * Retorna el id del override.
- */
-export async function upsertMinMaxOverride(params: UpsertMinMaxParams): Promise<string> {
-  const { data, error } = await supabase.rpc('upsert_min_max_override', {
+export async function upsertMinMaxOverride(params: UpsertMinMaxParams): Promise<void> {
+  const { error } = await supabase.rpc('upsert_min_max_override', {
     p_producto_id: params.producto_id,
     p_bodega_id: params.bodega_id,
     p_tipo_seleccion: params.tipo_seleccion,
@@ -91,14 +47,11 @@ export async function upsertMinMaxOverride(params: UpsertMinMaxParams): Promise<
   });
 
   if (error) throw new Error(`Error guardando override: ${error.message}`);
-
-  // La RPC retorna un uuid escalar
-  return (data as string) ?? '';
 }
 
 /**
  * Aplica el tipo "recomendado" en bulk a múltiples pares producto-bodega.
- * Calcula los valores recomendados sobre la marcha.
+ * Calcula los valores recomendados sobre la marcha y escribe en inventario.
  */
 export async function bulkAplicarRecomendados(
   pares: BulkPar[],

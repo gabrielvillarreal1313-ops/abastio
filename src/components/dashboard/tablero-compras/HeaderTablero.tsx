@@ -68,17 +68,17 @@ export function HeaderTablero({
 
       {/* Indicador de última generación + botón */}
       <div className="flex items-center gap-3 mt-3">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           {ultimaGeneracion
-            ? <>Última generación de POs: {tiempoRelativo(ultimaGeneracion)}</>
-            : 'Nunca se han generado POs sugeridas. Genera la primera para empezar.'
+            ? <>Última generación de órdenes: {tiempoRelativo(ultimaGeneracion)}</>
+            : 'Nunca se han generado órdenes de compra sugeridas. Genera la primera para empezar.'
           }
         </p>
         {puedeGenerar && <BotonGenerarPos />}
       </div>
 
       {mesActual && (
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-gray-500 mt-1">
           Datos del mes: {formatearMesAnio(mesActual)}
         </p>
       )}

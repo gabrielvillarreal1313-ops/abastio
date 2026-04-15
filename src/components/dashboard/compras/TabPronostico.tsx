@@ -391,7 +391,7 @@ export function TabPronostico({ data }: Props) {
                             </LineChart>
                           </ResponsiveContainer>
                         ) : (
-                          <span className="block text-center text-xs text-gray-300">—</span>
+                          <span className="block text-center text-xs text-gray-400">—</span>
                         )}
                       </div>
                     </td>

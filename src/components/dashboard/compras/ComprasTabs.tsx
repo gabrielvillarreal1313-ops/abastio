@@ -16,13 +16,13 @@ import { TabCompras } from './TabCompras';
 const TABS = [
   { key: 'pronostico', label: 'Pronóstico' },
   { key: 'planeacion', label: 'Planeación' },
-  { key: 'compras', label: 'Compras' },
+  { key: 'ordenes-compra', label: 'Órdenes de compra' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
 
 function isValidTab(value: string | undefined): value is TabKey {
-  return value === 'pronostico' || value === 'planeacion' || value === 'compras';
+  return value === 'pronostico' || value === 'planeacion' || value === 'ordenes-compra' || value === 'compras';
 }
 
 interface Props {
@@ -36,7 +36,9 @@ interface Props {
 }
 
 export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tabInicial, usuarioId }: Props) {
-  const [tabActivo, setTabActivo] = useState<TabKey>(isValidTab(tabInicial) ? tabInicial : 'pronostico');
+  // Compatibilidad: el slug anterior 'compras' sigue funcionando pero se mapea al nuevo
+  const tabInicialNormalizado = tabInicial === 'compras' ? 'ordenes-compra' : tabInicial;
+  const [tabActivo, setTabActivo] = useState<TabKey>(isValidTab(tabInicialNormalizado) ? tabInicialNormalizado as TabKey : 'pronostico');
 
   return (
     <>
@@ -65,7 +67,7 @@ export function ComprasTabs({ forecastData, planeacionData, sugerenciasData, tab
       {/* Contenido del tab activo */}
       {tabActivo === 'pronostico' && <TabPronostico data={forecastData} />}
       {tabActivo === 'planeacion' && <TabPlaneacion data={planeacionData} usuarioId={usuarioId} />}
-      {tabActivo === 'compras' && <TabCompras data={sugerenciasData} />}
+      {tabActivo === 'ordenes-compra' && <TabCompras data={sugerenciasData} />}
     </>
   );
 }

@@ -14,7 +14,7 @@ const TIPOS_ACCION = [
   { valor: 'po_aprobacion', label: 'Aprobación' },
   { valor: 'po_descarte', label: 'Descarte' },
   { valor: 'po_modificacion', label: 'Modificación' },
-  { valor: 'min_max_override', label: 'Override de min/max' },
+  { valor: 'min_max_override', label: 'Ajuste de min/max' },
 ] as const;
 
 const QUICK_PICKS = [

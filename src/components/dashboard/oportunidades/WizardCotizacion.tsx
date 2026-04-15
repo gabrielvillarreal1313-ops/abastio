@@ -774,7 +774,7 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
                       <div key={r.sku} className="px-3 py-2 flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-xs font-medium text-gray-900 truncate">{r.nombre_producto}</div>
-                          <div className="text-[10px] text-gray-400">Hace {r.dias_desde_ultima_compra} días · cada {r.intervalo_promedio_dias}d</div>
+                          <div className="text-[10px] text-gray-500">Hace {r.dias_desde_ultima_compra} días · cada {r.intervalo_promedio_dias}d</div>
                         </div>
                         <button onClick={() => agregarProducto(r.sku, r.nombre_producto, 'recompra', r.cantidad_ultima_compra)}
                           disabled={yaAgregado}
@@ -801,7 +801,7 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
                       <div key={u.sku} className="px-3 py-2 flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-xs font-medium text-gray-900 truncate">{u.nombre_producto}</div>
-                          <div className="text-[10px] text-gray-400">{u.cantidad} uds · {new Date(u.fecha_compra).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}</div>
+                          <div className="text-[10px] text-gray-500">{u.cantidad} uds · {new Date(u.fecha_compra).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}</div>
                         </div>
                         <button onClick={() => agregarProducto(u.sku, u.nombre_producto, 'una_vez', u.cantidad)}
                           disabled={yaAgregado}
@@ -829,7 +829,7 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
                         <div key={s.sku} className="px-3 py-2 flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <div className="text-xs font-medium text-gray-900 truncate">{s.nombre}</div>
-                            <div className="text-[10px] text-gray-400">{formatPct(cs.pct_clientes_similares)} de clientes similares</div>
+                            <div className="text-[10px] text-gray-500">{formatPct(cs.pct_clientes_similares)} de clientes similares</div>
                           </div>
                           <button onClick={() => agregarProducto(s.sku, s.nombre, 'cross_sell')}
                             disabled={yaAgregado}

@@ -24,18 +24,18 @@ const BADGE_URGENCIA: Record<string, { texto: string; clase: string }> = {
 export function SeccionPOsSugeridas({ pos, usuarioId }: Props) {
   return (
     <section id="pos-sugeridas" className="mb-10 scroll-mt-16">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">POs sugeridas pendientes de revisión</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Órdenes de compra sugeridas pendientes de revisión</h2>
       <p className="text-xs text-gray-500 mb-4 max-w-3xl">
         Órdenes de compra generadas por el sistema, agrupadas por bodega. Revisa, ajusta cantidades,
-        y aprueba o descarta cada una. Las POs en revisión por otro comprador se muestran pero solo en modo lectura.
+        y aprueba o descarta cada una. Las que están en revisión por otro comprador se muestran pero solo en modo lectura.
       </p>
 
       {pos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-gray-500 text-sm">No hay POs sugeridas pendientes de revisión.</p>
+          <p className="text-gray-500 text-sm">No hay órdenes de compra sugeridas pendientes de revisión.</p>
           <p className="text-gray-400 text-xs mt-1">
-            Esto puede significar que tu inventario está saludable, o que aún no has generado POs sugeridas para esta sesión.
-            Usa el botón &ldquo;Generar POs sugeridas&rdquo; en el header para crear nuevas.
+            Esto puede significar que tu inventario está saludable, o que aún no has generado órdenes sugeridas para esta sesión.
+            Usa el botón &ldquo;Generar órdenes sugeridas&rdquo; en el header para crear nuevas.
           </p>
         </div>
       ) : (

@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getMinMaxOverride, upsertMinMaxOverride } from '@/lib/queries/min-max-overrides';
+import { upsertMinMaxOverride } from '@/lib/queries/min-max-overrides';
 import { getCalculoRecomendado, type CalculoRecomendado } from '@/lib/queries/calculo-recomendado';
 import { getHistorialComprador, type HistorialAccion } from '@/lib/queries/historial-comprador';
 import { formatearFechaHora, formatUnidades } from '@/lib/textos/formato';
@@ -23,11 +23,14 @@ interface Props {
   bodegaNombre: string;
   productoSku: string;
   usuarioId: string;
+  minActual: number;
+  maxActual: number;
+  minRecomendado: number;
   abierto: boolean;
   onCerrar: () => void;
 }
 
-type TipoSeleccion = 'recomendado' | 'actual_erp' | 'personalizado';
+type TipoSeleccion = 'recomendado' | 'personalizado';
 
 // ─── Componente ─────────────────────────────────────────────────────────────
 
@@ -38,6 +41,9 @@ export function ModalMinMax({
   bodegaNombre,
   productoSku,
   usuarioId,
+  minActual,
+  maxActual,
+  minRecomendado,
   abierto,
   onCerrar,
 }: Props) {
@@ -65,10 +71,9 @@ export function ModalMinMax({
     setError(null);
 
     try {
-      const [override, calc, hist] = await Promise.all([
-        getMinMaxOverride(productoId, bodegaId),
+      const [calc, hist] = await Promise.all([
         getCalculoRecomendado(productoId, bodegaId),
-        getHistorialComprador(usuarioId, { entidadTipo: 'min_max_override' }),
+        getHistorialComprador(usuarioId, { entidadTipo: 'inventario' }),
       ]);
 
       setCalculo(calc);
@@ -83,26 +88,24 @@ export function ModalMinMax({
       });
       setHistorial(histFiltrado);
 
-      // Pre-selección según override existente
-      if (override) {
-        setTipo(override.tipo_seleccion);
-        if (override.tipo_seleccion === 'personalizado') {
-          setMinPersonalizado(String(override.minimo));
-          setMaxPersonalizado(String(override.maximo));
-          setMotivo(override.notas ?? '');
-        }
+      // Pre-selección: si min_actual difiere de min_recomendado, es personalizado
+      const esPersonalizado = minActual !== minRecomendado;
+      if (esPersonalizado) {
+        setTipo('personalizado');
+        setMinPersonalizado(String(minActual));
+        setMaxPersonalizado(String(maxActual));
       } else {
         setTipo('recomendado');
         setMinPersonalizado('');
         setMaxPersonalizado('');
-        setMotivo('');
       }
+      setMotivo('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando datos');
     } finally {
       setCargando(false);
     }
-  }, [abierto, productoId, bodegaId, usuarioId]);
+  }, [abierto, productoId, bodegaId, usuarioId, minActual, maxActual, minRecomendado]);
 
   useEffect(() => {
     cargarDatos();
@@ -144,8 +147,7 @@ export function ModalMinMax({
       return true;
     }
 
-    // actual_erp siempre deshabilitado
-    return false;
+    return true;
   }
 
   // ─── Guardar ────────────────────────────────────────────────────────────
@@ -180,7 +182,10 @@ export function ModalMinMax({
       });
 
       // Regla 13: después de mutaciones, window.location.href
-      window.location.href = window.location.href;
+      // Forzar ?tab=planeacion para que el refresh vuelva al tab correcto
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'planeacion');
+      window.location.href = url.toString();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando override');
       setGuardando(false);
@@ -298,13 +303,13 @@ export function ModalMinMax({
                       <div>
                         <p className="font-medium text-gray-700">Mínimo recomendado</p>
                         <p>Demanda diaria promedio (últimos {calculo.ventanaDias} días): <strong>{calculo.demandaDiariaPromedio.toFixed(2)} unidades</strong></p>
-                        <p>x Días de cobertura: <strong>{calculo.diasCoberturaMinimo}</strong></p>
+                        <p>× Días de cobertura: <strong>{calculo.diasCoberturaMinimo}</strong></p>
                         <p>= Mínimo recomendado: <strong>{formatUnidades(calculo.minimoCalculado)} unidades</strong></p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-700">Máximo recomendado</p>
                         <p>Demanda diaria promedio (últimos {calculo.ventanaDias} días): <strong>{calculo.demandaDiariaPromedio.toFixed(2)} unidades</strong></p>
-                        <p>x Días de cobertura: <strong>{calculo.diasCoberturaMaximo}</strong></p>
+                        <p>× Días de cobertura: <strong>{calculo.diasCoberturaMaximo}</strong></p>
                         <p>= Máximo recomendado: <strong>{formatUnidades(calculo.maximoCalculado)} unidades</strong></p>
                       </div>
                     </div>
@@ -329,7 +334,7 @@ export function ModalMinMax({
                   <p className="text-xs text-gray-400 mt-1">
                     Mín: — · Máx: —
                   </p>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     Disponible con integración SAP B1 / CONTPAQi
                   </p>
                 </div>
@@ -414,7 +419,7 @@ export function ModalMinMax({
                 </button>
                 <button
                   onClick={handleGuardar}
-                  disabled={guardando || tipo === 'actual_erp'}
+                  disabled={guardando}
                   className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-md hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {guardando ? 'Guardando...' : 'Guardar'}

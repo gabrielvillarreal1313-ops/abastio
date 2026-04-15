@@ -36,7 +36,7 @@ const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 function renderEntidad(accion: HistorialAccion) {
-  if (accion.entidad_tipo === 'min_max_override' && accion.producto_id) {
+  if (accion.entidad_tipo === 'inventario' && accion.producto_id) {
     return (
       <Link
         href={`/dashboard/productos/${accion.producto_id}`}

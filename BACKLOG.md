@@ -153,6 +153,15 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ---
 
+## Hallazgos post-4B (diferidos)
+
+- ~~**Items aprobados de POs sugeridas no deben re-aparecer en la siguiente generación.**~~ COMPLETADO — `generar_pos_sugeridas` ahora excluye items que ya están en POs con estado `aprobada` vía NOT EXISTS con jsonb_array_elements. Items eliminados por el comprador antes de aprobar siguen apareciendo en regeneraciones (lógica intencional del producto).
+- ~~**Reformular Mi historial → vista operativa de "Mi trabajo".**~~ COMPLETADO — Fase 4C. Mi historial reemplazado por Mi actividad con tabs Actividad reciente + Historial completo. 4 secciones en Actividad reciente (POs en revisión, aprobadas, descartadas, overrides). Sidebar actualizado, ruta vieja redirige.
+
+## Post-refactor 4B (diferidos)
+
+- **Reconectar historial de cambios en el modal de min/max.** Después del refactor 4B-refactor-1, la sección "Cambios desde la última actualización" dentro del modal quedó vacía porque la consulta usaba `entidad_id` del override, y ahora los cambios viven indexados por `(producto_id, bodega_id)` en el metadata JSONB de `acciones_comprador`. Implementar una query que lea del metadata y retorne el historial para ese par. Diferido a Fase 4C o polish posterior.
+
 ## Cómo usar este archivo
 
 - **Al diferir algo:** agregarlo aquí en la misma sesión con categoría apropiada.
@@ -160,4 +169,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-13 (Fase 4B completa — override editable de min/max con modal, bulk, historial polimórfico)
+**Última actualización:** 2026-04-15 (Fase 4C completada — Mi actividad del comprador)

@@ -26,22 +26,22 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 ## Estado actual
 
-- **Fase:** V0 (MVP con datos sintéticos) — Módulo del comprador completado (Fases 1, 2, 3, 4A del pivot)
-- **Última actividad:** Fase 4A completada (tracking de acciones del comprador, KPIs reales, página Mi historial)
-- **Siguiente:** Fase 4B-2 del pivot (refactor de RPCs para respetar overrides)
+- **Fase:** V0 (MVP con datos sintéticos) — Fase 4C del pivot completada, producto estable
+- **Última actividad:** Fase 4C completa — Mi actividad del comprador con tabs Actividad reciente + Historial completo
+- **Siguiente:** Fase 5 del pivot (Métricas y vista de dueño sobre compras)
 - **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
-- **Rutas:** 16 páginas (login, resumen, tablero-ventas, tablero-compras, compras, PO detalle, clientes, productos, vendedores, oportunidades, cotizaciones)
-- **RPCs:** 59 funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas)
-- **Tablas:** 15 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador + 1 overrides min/max)
+- **Rutas:** 18 páginas (login, resumen, tablero-ventas, tablero-compras, compras, PO detalle, mi-actividad, mi-historial redirect, clientes, productos, vendedores, oportunidades, cotizaciones)
+- **RPCs:** 60+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking, overrides)
+- **Tablas:** 13 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador)
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
 - Dashboard de resumen ejecutivo con: KPIs principales, gráfica de ingresos/margen mensual, Top 10 SKUs (ingresos vs margen), alertas de margen por categoría (detecta erosión de Plomería), detección de deadstock, detección de clientes en riesgo, rendimiento por vendedor con callouts automáticos
 - Módulo de Compras completo con tres tabs funcionales:
   - **Tab Pronóstico:** tabla de 1,544 filas (772 SKUs × 2 bodegas) con clasificación ABC, sparklines de tendencia, pronóstico ponderado, porcentaje de cambio con color condicional, sorting por columna, y filtros de bodega/categoría/clase ABC/demanda reciente/horizonte (1/3/6 meses)
-  - **Tab Planeación:** análisis de min/max de inventario con mínimos y máximos recomendados calculados automáticamente. Fórmulas: mín. recomendado = demanda diaria promedio × (7 días safety stock + 14 días lead time); máx. recomendado = demanda mensual promedio × 2 meses. Incluye modal de detalle del cálculo, filtros por estado (OK/Revisar), búsqueda, y sorting
+  - **Tab Planeación:** análisis de min/max de inventario con mínimos y máximos recomendados calculados automáticamente. Fórmulas: mín. recomendado = demanda_diaria_promedio_90d × 21 días; máx. recomendado = demanda_diaria_promedio_90d × 60 días (equivalente a demanda_mensual × 2). Ambas calculadas sobre ventana operacional de los últimos 90 días. Incluye modal de override min/max con opciones Recomendado/Personalizado, selección múltiple con bulk, filtros por estado (OK/Revisar), búsqueda, y sorting
   - **Tab Compras:** sugerencias de órdenes de compra con detección de desabasto/sobrestock, cantidad a pedir, meses de suministro (cantidad actual ÷ demanda mensual), selección múltiple, y botón "Generar orden de compra" (placeholder V1)
 - Módulo de Clientes completo:
   - **Lista de clientes** (/dashboard/clientes): tabla de 110 clientes con ingresos 12m, ticket promedio, días sin comprar, cambio %, estado activo/en riesgo, vendedor principal. Filtros por estado/tipo/búsqueda, sorting por columna, filas clickeables al detalle
@@ -82,6 +82,12 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - Hooks automáticos en las 4 RPCs existentes de POs que insertan una acción por cada mutación exitosa
   - Página `/dashboard/compras/mi-historial` con filtros de fecha, tipo, y resumen del periodo
   - KPIs del Tablero de compras actualizados con datos reales: `valor_pos_aprobadas_mes`, `pos_pendientes_revision`, y nuevo `tiempo_promedio_revision_horas`
+- Mi actividad del comprador (Fase 4C del pivot):
+  - Página `/dashboard/compras/mi-actividad` con 2 tabs: Actividad reciente + Historial completo
+  - Tab Actividad reciente con 4 secciones: POs en revisión por mí (badge urgencia, botón "Continuar revisión"), aprobadas recientes, descartadas recientes (con motivo), ajustes de inventario recientes (overrides min/max con link a producto)
+  - Tab Historial completo: migrado desde `/mi-historial` con filtros de fecha, tipo, y resumen del periodo
+  - Sidebar actualizado ("Mi historial" → "Mi actividad"), ruta vieja redirige con `?tab=historial`
+  - RPCs: `get_pos_por_revisor` (POs por revisor asignado) y `get_overrides_recientes` (últimos overrides min/max)
 
 ## Decisiones tomadas
 
@@ -110,12 +116,15 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 | Abr 2026 | POs sugeridas: generación manual, no automática | Botón visible para comprador/dueno, con indicador "última generación hace X". Evita que el comprador vea datos cambiando sin su acción |
 | Abr 2026 | Anti-conflicto de revisor en POs sugeridas | El `comprador_id_revisor` solo se asigna vía `tomar_revision_po`, nunca automáticamente. No se sobreescribe si otro usuario ya es revisor |
 | Abr 2026 | `acciones_comprador` como única fuente de verdad para métricas de tiempo del comprador | Evita duplicación de timestamps en tablas de dominio. Single source of truth facilita agregaciones consistentes y extensibilidad a nuevos tipos de acción sin cambiar el modelo |
-| Abr 2026 | `min_max_overrides` guarda solo el estado vigente, no el historial | El historial se deriva de `acciones_comprador` filtrando por `entidad_tipo = 'min_max_override'`. Mantiene una sola fuente de verdad consistente con la regla 25, evita drift entre tablas, y mantiene `min_max_overrides` chica y rápida para lookups en las RPCs de cálculo |
+| Abr 2026 | `min_max_overrides` eliminada — los overrides escriben directamente en `inventario` | El modelo de "override como entidad separada" creaba dos verdades operativas paralelas. En V0 tratamos `inventario.cantidad_minima/maxima` como "el ERP" y escribimos directamente. `acciones_comprador` sigue siendo el log de cambios vía metadata JSONB. En V1, `upsert_min_max_override` llamará al API del ERP |
+| Abr 2026 | Badge de "Rec./Custom" en Tab Planeación se deriva de `acciones_comprador`, no de comparación de valores | Comparar `min_actual === min_recomendado` es ambiguo: un valor del seed casualmente distinto al recomendado se vería como "Custom" sin que nadie lo haya tocado. La única forma correcta de saber si hubo intervención del comprador es leer de `acciones_comprador` directamente |
+| Abr 2026 | `inventario.cantidad_minima/maxima` restaurado desde seed después de UPDATE masivo erróneo | Durante el refactor 4B-refactor-1, se ejecutó un UPDATE masivo que sobrescribió las 1,544 filas de inventario con los valores del cálculo recomendado. El fix restauró los valores usando la fórmula determinística del seed original (`scripts/seed/inventario.ts`) |
 | Abr 2026 | Override es por par `(producto_id, bodega_id)`, no global por producto | Un producto puede tener distinto comportamiento de inventario en León vs Querétaro (distintas demandas, distintas restricciones operativas). Granularidad item-bodega es consistente con el resto del modelo de datos |
 | Abr 2026 | Override de min/max es la verdad operativa (Camino B) | Las RPCs de cálculo de inventario respetan el override cuando existe vía COALESCE. Un override personalizado de mínimo cambia qué items aparecen en desabasto crítico, qué POs se sugieren, y los valores de la tabla de planeación. Esto materializa el principio de que las decisiones del comprador mueven la operación, no son cosméticas |
 | Abr 2026 | Fórmula de "Recomendado" unificada a ventana operacional de 90 días | Antes existían dos fórmulas: una con historial completo (Tab Planeación) y otra con 90 días (RPCs operacionales). Esto creaba incoherencia entre lo que el modal mostraría como recomendado y lo que el sistema usaba para detectar desabasto. La unificación a 90 días refleja la realidad operativa reciente, que es lo que importa para las decisiones diarias del comprador, y elimina la posibilidad de que el modal de min/max contradiga al resto del producto |
 | Abr 2026 | Modal de override sigue patrón "recomendación + override + historia" tipo Recurrency | Tres opciones de selección con justificación visible (popover de fórmula). El historial vive embebido en el mismo modal, no en página separada. Esto convierte el modal en una herramienta educativa: el comprador no solo ajusta valores, entiende por qué el sistema recomendó lo que recomendó y qué ha pasado antes con ese ítem |
 | Abr 2026 | POs en revisión se conservan al regenerar | `generar_pos_sugeridas()` solo elimina POs pendientes sin revisor. Protege trabajo en progreso |
+| Abr 2026 | POs aprobadas excluyen sus items de futuras regeneraciones | Coherente con Camino B (las decisiones del comprador son la verdad operativa). Una vez que un item-bodega está en una PO aprobada, no se vuelve a sugerir hasta que algo cambie en V1 con integración real al ERP. Items eliminados conscientemente antes de aprobar SÍ siguen sugiriéndose |
 | Abr 2026 | Paginación de POs: 50 items por página en detalle | POs del seed actual tienen 750+ líneas. Paginación con buscador inline por simplicidad |
 
 ## Cosas diferidas
@@ -166,38 +175,151 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 - Página Mi historial con filtros y resumen del periodo
 - KPIs del Tablero con datos reales (3 de 4 activos, 1 placeholder documentado)
 
-**Fase 4B-1 — Fundación de overrides de min/max (completada):**
-- Tabla `min_max_overrides` con constraints (UNIQUE por par, CHECK min≤max, notas obligatorias para personalizado)
-- 4 RPCs nuevas: `get_min_max_override`, `upsert_min_max_override`, `bulk_aplicar_recomendados`, `_calcular_recomendados`
-- CHECK constraints de `acciones_comprador` ampliados para aceptar `min_max_override`
-- Wrapper TypeScript con tipos y guards defensivos
-- Tabla vacía intencionalmente — las RPCs de cálculo no la consultan hasta 4B-2
+**Fase 4B — Override editable de min/max (completada, incluyendo refactor):**
+- Sub-fases: 4B-1 (backend), 4B-2 (RPCs con COALESCE), 4B-2.5 (fórmula unificada a 90 días), 4B-3 (UI modal + bulk + historial polimórfico)
+- Refactor 4B-refactor-1: tabla `min_max_overrides` eliminada, overrides escriben directamente en `inventario.cantidad_minima/maxima`
+- Hot fixes post-4B: estandarización PO→Orden de compra, tab renombrado, refresh de tab preservado, ícono de ojo eliminado de tabla, botones huérfanos eliminados
+- Audit de contrastes: 20 cambios de grises para cumplir WCAG AA (regla 27)
+- Fix: POs aprobadas no re-aparecen al regenerar (`generar_pos_sugeridas` con NOT EXISTS)
+- Fix: seed de `inventario.cantidad_minima/maxima` restaurado después de UPDATE masivo erróneo
+- Fix: badge de Tab Planeación derivado de `acciones_comprador` (no comparación de valores)
 
-**Fase 4B-2 — Refactor de RPCs para respetar overrides (completada):**
-- Las 4 RPCs de cálculo de inventario ahora hacen LEFT JOIN con `min_max_overrides` y usan COALESCE
-- Snapshots pre/post coinciden bit por bit (tabla vacía = comportamiento idéntico)
-- Test funcional: override con mínimo 99999 hace aparecer item saludable en desabasto crítico
+**Fase 4C — Mi actividad del comprador (completada):**
+- Página `/dashboard/compras/mi-actividad` con 2 tabs (Actividad reciente + Historial completo)
+- 4 secciones en Actividad reciente: POs en revisión, aprobadas, descartadas, overrides min/max
+- Historial completo migrado desde `/mi-historial` con filtros y resumen intactos
+- Sidebar actualizado, ruta vieja redirige, deep-linking con `?tab=historial`
+- RPCs: `get_pos_por_revisor`, `get_overrides_recientes`
 
-**Fase 4B-2.5 — Unificación de fórmula a ventana operacional de 90 días (completada):**
-- `_calcular_recomendados` y `get_planeacion_inventario` ahora usan ventana de 90 días, igual que las RPCs operacionales
-- 98.3% de SKUs cambiaron sus valores recomendados (esperado: la ventana reciente refleja mejor la demanda actual)
-- RPCs operacionales no cambiaron (misma fórmula desde antes)
+**Siguiente: Fase 5 — Métricas y vista de dueño sobre compras (semana 10, ~10 horas)**
 
-**Fase 4B-3 — UI del modal min/max (completada):**
-- Modal de override en Tab Planeación con tres opciones (Recomendado / Actual ERP / Personalizado)
-- Popover de fórmula expandida con valores reales del item (educativo, no documentación externa)
-- Historial embebido en el modal mostrando todos los cambios anteriores del par producto-bodega
-- Selección múltiple en la tabla con bulk de "Aplicar recomendados"
-- Integración con Mi historial: las acciones de override aparecen junto con las de POs, filtrables por tipo
-- Las 4 RPCs de cálculo de inventario respetan los overrides automáticamente (Camino B)
+Objetivo: Que el dueño pueda supervisar la operación de compras desde su Resumen Ejecutivo, y que el comprador tenga su página de "Mi desempeño" análoga a la del rep.
 
-**Fase 4B completa (4B-1 + 4B-2 + 4B-2.5 + 4B-3)**
+Trabajo:
 
-**Post-Fase 4B:**
-- Polish visual y UX del V0
-- Regenerar seed con distribución realista de inventario antes de demo
-- Preparar deck/demo para inversionistas
-- Investigación de API SAP B1 diferida hasta tener primer cliente real
+Para el comprador:
+
+- Página `/dashboard/compras/mi-desempeno` (visible solo para rol comprador)
+- KPIs personales del mes:
+  - POs generadas y aprobadas
+  - Valor total movido
+  - Tasa de stockouts evitados (% de items en desabasto crítico que fueron resueltos vs no resueltos)
+  - Tiempo promedio de revisión de POs
+  - Comparación contra mes anterior
+- Gráfica histórica de actividad mensual (POs por mes)
+- Top categorías compradas
+- Top proveedores (placeholder por ahora)
+
+Para el dueño:
+
+- Agregar sección "Operación de compras" al Resumen Ejecutivo:
+  - Valor de POs aprobadas en el mes
+  - SKUs en desabasto crítico (count)
+  - Capital atrapado en deadstock + sobrestock
+  - Click lleva al módulo de Compras o a Mi día comprador (vista del dueño)
+
+Criterio de éxito:
+Como comprador, abro Mi desempeño y veo cómo me fue este mes. Como dueño, en mi Resumen Ejecutivo veo el pulso de la operación de compras sin tener que entrar al módulo entero.
+
+**Fase 6 — Polish del módulo comprador (semana 11, ~10 horas)**
+
+Objetivo: Que la experiencia del comprador esté pulida antes de pasar al rep.
+
+Trabajo:
+
+- Estados vacíos amigables (cuando no hay items en desabasto, mostrar "Tu inventario está saludable")
+- Loading states consistentes
+- Toasts de confirmación al aprobar/descartar POs
+- Verificar que la búsqueda global funciona desde Mi día comprador
+- Verificar que el flujo end-to-end funciona: login como comprador → Mi día → revisar PO → aprobar → ver en historial → ver reflejado en métricas
+- Capturar screenshots del flujo del comprador para deck de demo
+
+Criterio de éxito:
+Puedes mostrar el flujo completo del comprador a alguien sin avergonzarte de bugs o inconsistencias.
+
+Hito: Aquí termina la mitad del pivot. Tienes el módulo del comprador funcional y pulido. Ahora arrancas con el rep.
+
+**Fase 7 — Mi día del rep (semana 12, ~15 horas)**
+
+Objetivo: Crear la página de aterrizaje del rep, equivalente a lo que hicimos para el comprador.
+
+Trabajo:
+
+- Crear ruta `/dashboard/mi-dia`
+- Header personal: "Hola [rep]. Tienes 8 oportunidades de alto valor por trabajar hoy."
+- Secciones:
+  - Top oportunidades del día (5-7 filas): mezcla priorizada de recompras tardías + cross-sell de mayor valor para los clientes asignados a este rep. Cada fila clickeable lleva al detalle del cliente. Botón inline "Crear cotización."
+  - Cotizaciones pendientes de seguimiento: borradores que llevan más de N días sin tocar + cotizaciones enviadas cuya validez está por vencer
+  - Mis clientes en riesgo: clientes asignados a este rep que aparecen en clientes en riesgo
+  - Mis métricas del mes: ingresos generados, cotizaciones, % conversión (placeholder hasta tener tracking real)
+- Modificar las RPCs de oportunidades para aceptar `p_vendedor_id` y filtrar
+- Aplicar filtros de vendedor en todas las listas relevantes cuando el usuario es solo rep
+
+Criterio de éxito:
+Como rep, abro la app y en 5 segundos sé qué hacer hoy. Como dueño, sigo viendo Resumen Ejecutivo. Como dueño-comprador-vendedor, puedo cambiar entre las tres vistas según lo que necesite hacer.
+
+**Fase 8 — Velocidad y fricción de cotización (semana 13, ~12 horas)**
+
+Objetivo: Hacer que crear una cotización sea tan rápido como en Recurrency.
+
+Trabajo:
+
+- Auto-asignar el vendedor logueado al wizard
+- Pasar las recomendaciones del detalle de cliente al wizard pre-llenadas
+- Atajos de teclado (Enter/Esc/Tab)
+- Búsqueda typo-tolerant en el buscador de productos del wizard (con pg_trgm, igual que el del comprador)
+- Botón "Duplicar línea" en el wizard
+- Mostrar inventario inline en el buscador de productos
+
+Criterio de éxito:
+Crear cotización con 5 líneas en menos de 60 segundos.
+
+**Fase 9 — Tracking de acciones del rep (semana 14, ~12 horas)**
+
+Objetivo: Cerrar el loop del rep, equivalente al del comprador.
+
+Trabajo:
+
+- Tabla `oportunidades_trabajadas` con `vendedor_id`, `oportunidad_id`, fecha, acción (cotizada, descartada, pospuesta), notas
+- Botones inline en cada oportunidad: Cotizar / Descartar / Posponer
+- Las trabajadas desaparecen de Mi día pero quedan en historial
+- Vista "Mi historial" para el rep
+- Pospuestas reaparecen en la fecha programada
+
+Criterio de éxito:
+Como rep, trabajo oportunidades en la mañana, las marco, y por la tarde Mi día solo muestra las que faltan.
+
+**Fase 10 — Métricas personales del rep (semana 15, ~10 horas)**
+
+Objetivo: Análoga a Mi desempeño del comprador.
+
+Trabajo:
+
+- Página `/dashboard/mi-desempeno` (visible solo para rol rep)
+- KPIs personales del mes
+- Gráfica histórica de los últimos 12 meses
+- Top clientes y top SKUs del rep
+
+Criterio de éxito:
+Como rep, veo mi progreso del mes y me motiva a usar la herramienta.
+
+**Fase 11 — Polish final y demo prep (semana 16, ~10 horas)**
+
+Objetivo: Que todo el producto esté pulido para mostrarse.
+
+Trabajo:
+
+- Estados vacíos en todas las páginas
+- Loading states consistentes
+- Toasts en todas las mutaciones
+- Screenshots de los tres flujos (rep, comprador, dueño) para deck
+- Documentación completa en CONTEXTO_PROYECTO.md, BACKLOG.md, CLAUDE.md
+- Verificar los flujos end-to-end de los tres roles
+
+Criterio de éxito:
+Puedes mostrar el producto completo a un inversionista o cliente potencial.
+
+**Crítico antes del demo (fuera del cronograma de fases):** Regenerar el seed con distribución realista de inventario. Hoy ~97% del inventario está en stock cero. Distribución target: ~70% saludable, ~15% sobrestock, ~10% próximo a desabasto, ~5% desabasto crítico.
 
 ## Paridad con Recurrency — Módulo Compras
 
@@ -218,8 +340,8 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 | Sparkline con segmento de pronóstico | Backlog V1 | Historial gris + proyección en color |
 | Detección de estacionalidad | Backlog V2 | Modelo actual es promedio ponderado simple |
 | Herencia de item (SKU sucesor) | Backlog V2 | Para SKUs que reemplazan descontinuados |
-| Min/max dinámicos por SKU | Implementado | Tab Planeación: mín = demanda diaria × 21 días, máx = demanda mensual × 2 |
-| Modal de detalle de cálculo | Implementado | Muestra fórmula completa con valores reales del SKU |
+| Min/max dinámicos por SKU | Implementado | Tab Planeación: mín = demanda_90d × 21, máx = demanda_90d × 60. Override editable por comprador |
+| Modal de override min/max | Implementado | Opciones Recomendado/Personalizado, popover de fórmula, historial, selección múltiple con bulk |
 | Estado de inventario (OK/Revisar) | Implementado | Filtros tipo Recurrency con conteo por estado |
 | Sugerencias de PO automáticas | Implementado | Tab Compras: detecta desabasto, calcula cantidad a pedir |
 | Selección múltiple para PO | Implementado | Checkbox por fila + seleccionar todos + botón "Generar OC" |
@@ -244,4 +366,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-13 (Fase 4B completa — override editable de min/max con modal, bulk, e integración con Mi historial)
+**Última actualización:** 2026-04-15 (Fase 4C completada — Mi actividad del comprador)

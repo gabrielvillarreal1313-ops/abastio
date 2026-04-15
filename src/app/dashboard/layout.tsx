@@ -98,8 +98,8 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'Mi historial',
-    href: '/dashboard/compras/mi-historial',
+    label: 'Mi actividad',
+    href: '/dashboard/compras/mi-actividad',
     roles: ['dueno', 'comprador'],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

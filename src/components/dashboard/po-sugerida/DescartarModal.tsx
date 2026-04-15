@@ -18,9 +18,9 @@ export function DescartarModal({ onConfirmar, onCerrar }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Descartar esta PO?</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Descartar esta orden de compra?</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Esta acción no se puede deshacer. La PO quedará registrada como descartada y no aparecerá en el Tablero de compras.
+          Esta acción no se puede deshacer. La orden quedará registrada como descartada y no aparecerá en el Tablero de compras.
         </p>
 
         <label className="block text-sm font-medium text-gray-700 mb-1">

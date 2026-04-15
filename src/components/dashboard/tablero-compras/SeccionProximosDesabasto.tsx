@@ -48,7 +48,6 @@ export function SeccionProximosDesabasto({ items }: Props) {
                     <th className="px-3 py-2.5 font-medium text-right">Mínimo</th>
                     <th className="px-3 py-2.5 font-medium text-right">Días hasta stockout</th>
                     <th className="px-3 py-2.5 font-medium text-right">Valor en riesgo / mes</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -70,15 +69,6 @@ export function SeccionProximosDesabasto({ items }: Props) {
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-900 tabular-nums">
                         {formatMXNTabla(item.valor_impacto_mensual)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button
-                          disabled
-                          title="Disponible en Fase 3"
-                          className="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-400 cursor-not-allowed"
-                        >
-                          Generar PO
-                        </button>
                       </td>
                     </tr>
                   ))}

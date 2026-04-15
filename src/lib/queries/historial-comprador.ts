@@ -19,7 +19,7 @@ export interface HistorialAccion {
   estado_po_actual: string | null;
   notas: string | null;
   metadata: Record<string, unknown>;
-  entidad_tipo: 'po_sugerida' | 'min_max_override';
+  entidad_tipo: 'po_sugerida' | 'inventario';
   producto_id: string | null;
 }
 

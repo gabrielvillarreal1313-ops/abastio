@@ -206,7 +206,7 @@ export function ListaProductos({ productos }: Props) {
                       <div className="font-medium text-gray-900 truncate max-w-[220px]" title={p.nombre}>{p.nombre}</div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-gray-400">{p.categoria}</span>
-                        {p.marca && <span className="text-[10px] text-gray-400">· {p.marca}</span>}
+                        {p.marca && <span className="text-[10px] text-gray-500">· {p.marca}</span>}
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap truncate max-w-[120px]" title={p.proveedor_principal}>

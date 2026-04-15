@@ -23,11 +23,9 @@ export interface PlaneacionSKU {
   estado: 'ok' | 'revisar';
   demanda_diaria_promedio: number;
   demanda_mensual_promedio: number;
-  minimo_efectivo: number;
-  maximo_efectivo: number;
-  tiene_override: boolean;
-  tipo_override: string | null;
   bodega_id: number;
+  tiene_accion_registrada: boolean;
+  tipo_ultima_accion: string | null;
 }
 
 export interface PlaneacionData {
@@ -51,11 +49,9 @@ function parsePlaneacionRow(r: Record<string, unknown>): PlaneacionSKU {
     estado: r.estado === 'ok' ? 'ok' : 'revisar',
     demanda_diaria_promedio: Number(r.demanda_diaria_promedio) || 0,
     demanda_mensual_promedio: Number(r.demanda_mensual_promedio) || 0,
-    minimo_efectivo: Number(r.minimo_efectivo) || 0,
-    maximo_efectivo: Number(r.maximo_efectivo) || 0,
-    tiene_override: r.tiene_override === true || r.tiene_override === 'true',
-    tipo_override: (r.tipo_override as string) ?? null,
     bodega_id: Number(r.bodega_id) || 0,
+    tiene_accion_registrada: r.tiene_accion_registrada === true || r.tiene_accion_registrada === 'true',
+    tipo_ultima_accion: (r.tipo_ultima_accion as string) ?? null,
   };
 }
 

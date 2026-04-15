@@ -202,14 +202,14 @@ export function ListaOportunidades({ oportunidades }: Props) {
                     {o.conteo_recompras > 0 ? (
                       <span className="text-amber-600 font-medium">{o.conteo_recompras}</span>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-right whitespace-nowrap">
                     {o.conteo_cross_sell > 0 ? (
                       <span className="text-blue-600 font-medium">{o.conteo_cross_sell}</span>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
                   <td className="px-5 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">

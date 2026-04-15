@@ -30,7 +30,7 @@ function TarjetaAlerta({ colorAccento, colorValor, valor, descripcion, subtitulo
     <div className={`bg-white rounded-lg border border-gray-200 p-5 border-t-2 ${colorAccento}`}>
       <p className={`text-2xl font-semibold tracking-tight ${colorValor}`}>{valor}</p>
       <p className="text-sm text-gray-700 mt-1">{descripcion}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{subtitulo}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{subtitulo}</p>
     </div>
   );
 }

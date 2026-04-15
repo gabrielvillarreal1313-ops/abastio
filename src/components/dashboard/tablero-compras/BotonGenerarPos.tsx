@@ -16,7 +16,7 @@ export function BotonGenerarPos() {
     if (generando) return;
 
     const ok = confirm(
-      'Esto regenerará las POs sugeridas pendientes. Las POs que ya están en revisión por ti u otros se conservarán. ¿Continuar?'
+      'Esto regenerará las órdenes de compra sugeridas pendientes. Las que ya están en revisión se conservarán. ¿Continuar?'
     );
     if (!ok) return;
 
@@ -26,7 +26,7 @@ export function BotonGenerarPos() {
       await generarPosSugeridas();
       window.location.href = window.location.href;
     } catch {
-      setError('No se pudieron generar POs. Intenta de nuevo.');
+      setError('No se pudieron generar órdenes. Intenta de nuevo.');
       setGenerando(false);
     }
   }
@@ -41,7 +41,7 @@ export function BotonGenerarPos() {
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
         </svg>
-        {generando ? 'Generando...' : 'Generar POs sugeridas'}
+        {generando ? 'Generando...' : 'Generar órdenes de compra'}
       </button>
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>

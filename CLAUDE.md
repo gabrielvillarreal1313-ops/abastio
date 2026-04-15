@@ -22,7 +22,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 
 ## Base de datos
 
-15 tablas en Supabase (project: `talinunhftglhoghwacq`):
+13 tablas en Supabase (project: `talinunhftglhoghwacq`):
 
 **Datos del negocio (seed):**
 - `bodegas` — 2 filas (León, Querétaro)
@@ -44,10 +44,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `po_sugeridas` — POs generadas por el sistema, agrupadas por bodega. Líneas como JSONB array editable
 
 **Tracking de acciones (Fase 4A):**
-- `acciones_comprador` — log de eventos de decisiones del comprador. Única fuente de verdad para métricas de tiempo. Tipos: `po_toma_revision`, `po_aprobacion`, `po_descarte`, `po_modificacion`, `min_max_override`. Extensible a nuevos tipos vía CHECK constraint.
-
-**Overrides de min/max (Fase 4B):**
-- `min_max_overrides` — overrides vigentes de mínimo/máximo por par producto-bodega. Tres tipos: `recomendado`, `actual_erp`, `personalizado`. Constraint único en (producto_id, bodega_id) — solo un override vigente por par. El historial completo se deriva de `acciones_comprador`. Las 4 RPCs de cálculo de inventario (`get_planeacion_inventario`, `get_sugerencias_compra`, `get_items_desabasto_critico`, `get_items_proximos_desabasto`) ahora respetan los overrides vía LEFT JOIN.
+- `acciones_comprador` — log de eventos de decisiones del comprador. Única fuente de verdad para métricas de tiempo. Tipos de acción: `po_toma_revision`, `po_aprobacion`, `po_descarte`, `po_modificacion`, `min_max_override`. Tipos de entidad: `po_sugerida` e `inventario`. Para acciones sobre inventario (overrides de min/max), el `entidad_id` es NULL y el par `(producto_id, bodega_id)` vive en el metadata JSONB.
 
 **Cache de oportunidades (pre-computado con `refrescar_oportunidades()`):**
 - `oportunidades_recompra_cache` — 3,021 pares cliente-SKU vencidos
@@ -67,8 +64,8 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 
 **Módulo de Compras:**
 - `get_forecast_skus()` — pronóstico por SKU × bodega (~1,544 filas, requiere paginación .range())
-- `get_planeacion_inventario()` — min/max actuales vs recomendados (~1,544 filas)
-- `get_sugerencias_compra()` — detección de desabasto/sobrestock/sin_movimiento con fórmula unificada (demanda×21). Incluye `bodega_id`, `demanda_diaria_promedio`, `minimo_recomendado`. Estados: desabasto, ok, sobrestock, sin_movimiento
+- `get_planeacion_inventario()` — min/max actuales vs recomendados (~1,544 filas). Incluye `tiene_accion_registrada` y `tipo_ultima_accion` derivados de `acciones_comprador` para el badge de intervención del comprador
+- `get_sugerencias_compra()` — detección de desabasto/sobrestock/sin_movimiento. Usa `inventario.cantidad_minima` como umbral de desabasto. Incluye `bodega_id`, `demanda_diaria_promedio`, `minimo_recomendado`. Estados: desabasto, ok, sobrestock, sin_movimiento
 
 **Módulo de Clientes:**
 - `get_clientes_lista(p_vendedor_id INTEGER DEFAULT NULL)` — 110 clientes con métricas 12m. Si se pasa vendedor_id, filtra solo clientes cuyo vendedor principal es ese vendedor
@@ -117,14 +114,14 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `busqueda_global(p_termino)` — busca en clientes, productos y cotizaciones simultáneamente, retorna JSON con top 5/5/3 + conteos
 
 **Tablero de compras (Fase 2) — ventana fija de 90 días para demanda:**
-- `get_items_desabasto_critico()` — SKU × bodega con stock < mínimo recomendado (demanda_diaria × 21)
+- `get_items_desabasto_critico()` — SKU × bodega con stock < inventario.cantidad_minima
 - `get_items_proximos_desabasto(p_horizonte_dias DEFAULT 14)` — stock >= mínimo PERO días hasta stockout < horizonte. Mutuamente excluyente con desabasto crítico
 - `get_alertas_sobrestock()` — SKU × bodega con > 6 meses de inventario (excluye deadstock)
 - `get_items_sin_movimiento_reciente()` — SKUs con stock > 0, sin venta en 30 días pero sí en 90 días (alerta temprana, mutuamente excluyente con deadstock)
 - `get_kpis_comprador_mes()` — KPIs agregados del mes actual (algunos campos placeholder NULL hasta fases futuras)
 
 **POs sugeridas persistentes (Fase 3):**
-- `generar_pos_sugeridas()` — genera POs por bodega desde `get_sugerencias_compra`. Conserva POs con revisor asignado, elimina huérfanas
+- `generar_pos_sugeridas()` — genera POs por bodega desde `get_sugerencias_compra`. Conserva POs con revisor asignado, elimina huérfanas sin revisor. **Excluye items que ya están en POs con estado `aprobada`** para evitar re-sugerir lo ya aprobado. Items eliminados por el comprador antes de aprobar SÍ vuelven a aparecer
 - `get_pos_sugeridas_pendientes()` — lista de POs pendientes de revisión (cabecera sin líneas)
 - `get_po_sugerida_detalle(p_po_id)` — detalle completo con líneas JSONB
 - `tomar_revision_po(p_po_id, p_usuario_id)` — asigna revisor. Anti-conflicto: no sobreescribe si otro ya es revisor. **Side effect:** inserta en `acciones_comprador` (Fase 4A)
@@ -132,16 +129,16 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `descartar_po(p_po_id, p_usuario_id, p_notas)` — solo el revisor asignado puede descartar. **Side effect:** inserta en `acciones_comprador`
 - `actualizar_lineas_po(p_po_id, p_usuario_id, p_lineas)` — reemplaza líneas y recalcula metadatos. NO usar JSON.stringify. **Side effect:** inserta en `acciones_comprador` con metadata de antes/después
 
-**Tracking de acciones (Fase 4A):**
-**Overrides de min/max (Fase 4B):**
-- `get_min_max_override(p_producto_id, p_bodega_id)` — retorna el override vigente o NULL
-- `upsert_min_max_override(...)` — crea o actualiza un override y registra acción en `acciones_comprador` atómicamente
-- `bulk_aplicar_recomendados(p_pares jsonb, p_usuario_id)` — aplica el tipo recomendado a múltiples items
-- `_calcular_recomendados(p_producto_id, p_bodega_id)` — fuente de verdad para los valores recomendados de min/max (ventana operacional de 90 días). Las RPCs de cálculo mantienen fórmula inline por performance (procesan todos los SKUs a la vez) pero con comentario SQL indicando que debe coincidir con este helper
+**Tracking de acciones y overrides (Fases 4A + 4B):**
+- `get_historial_comprador(p_usuario_id, p_fecha_desde, p_fecha_hasta, p_tipo_accion, p_entidad_tipo, p_entidad_id)` — historial polimórfico del comprador. Maneja `entidad_tipo = 'po_sugerida'` e `'inventario'`. Filtros opcionales por entidad específica
+- `upsert_min_max_override(...)` — escribe min/max directamente en `inventario.cantidad_minima/maxima` y registra acción en `acciones_comprador` con `entidad_tipo = 'inventario'`. Si tipo es `recomendado`, calcula valores frescos desde `_calcular_recomendados` e ignora p_minimo/p_maximo. Si tipo es `personalizado`, usa los valores pasados. Tipo `actual_erp` no válido en V0
+- `bulk_aplicar_recomendados(p_pares jsonb, p_usuario_id)` — aplica recomendado a múltiples items: calcula vía `_calcular_recomendados`, escribe en `inventario`, registra cada cambio en `acciones_comprador`
+- `_calcular_recomendados(p_producto_id, p_bodega_id)` — fuente de verdad para los valores recomendados de min/max (ventana operacional de 90 días). Las RPCs de cálculo mantienen fórmula inline por performance con comentario SQL de sincronización
 - `get_calculo_recomendado(p_producto_id, p_bodega_id)` — expone componentes de la fórmula de recomendado para el popover del modal (demanda diaria, días de cobertura, valores calculados)
 
-**Tracking de acciones (Fase 4A):**
-- `get_historial_comprador(p_usuario_id, p_fecha_desde, p_fecha_hasta, p_tipo_accion, p_entidad_tipo, p_entidad_id)` — historial polimórfico del comprador. Maneja `po_sugerida` y `min_max_override`. Filtros opcionales por entidad específica (Fase 4B-3)
+**Mi actividad del comprador (Fase 4C):**
+- `get_pos_por_revisor(p_usuario_id)` — todas las POs donde el usuario es o fue revisor, sin importar estado. Ordenadas: `pendiente_revision` primero, luego por `actualizada_en` DESC. JOIN a bodegas para nombre
+- `get_overrides_recientes(p_usuario_id, p_limite DEFAULT 20)` — últimos N overrides de min/max del usuario. Resuelve producto (nombre, SKU) y bodega desde metadata JSONB de `acciones_comprador`. Extrae `tipo_seleccion`, valores antes/después
 
 **Estados de cotización y transiciones:**
 - `borrador` → `enviada` (Enviar a ERP) | eliminado (Cancelar → DELETE)
@@ -215,9 +212,9 @@ Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tiene
 
 19. **Formateo de fechas tipo "mes"**: Usar `formatearMesAnio()` de `src/lib/textos/formato.ts`. NO usar `new Date(string).toLocaleDateString()` para strings tipo `"YYYY-MM-DD"` porque JavaScript los interpreta como UTC medianoche, lo que en zona horaria mexicana (UTC-6) retrocede al día anterior y muestra el mes equivocado. Regla general: si el dato representa un mes (no un instante), tratarlo como string y parsearlo, nunca convertirlo a `Date` para formatear.
 
-20. **Una sola fórmula de mínimo efectivo en todo el producto, con ventana operacional de 90 días.** El criterio único es `stock_actual < minimo_efectivo`, donde `minimo_efectivo = COALESCE(override.minimo, demanda_diaria_promedio_90d × 21)`. La ventana de 90 días refleja la realidad operativa reciente del comprador, no historial de largo plazo. Las 4 RPCs (`get_items_desabasto_critico`, `get_sugerencias_compra`, `get_items_proximos_desabasto`, `get_planeacion_inventario`) comparten esta fórmula vía LEFT JOIN con `min_max_overrides`. La columna `cantidad_minima` de la tabla `inventario` sigue siendo legacy del seed y NO se debe usar. El helper `_calcular_recomendados` es la fuente de verdad para los valores recomendados que aparecen como fallback del COALESCE — usa la misma lógica de demanda 90 días que las RPCs operacionales.
+20. **Una sola fórmula de mínimo efectivo en todo el producto, basada en `inventario.cantidad_minima`.** El criterio único es `stock_actual < inventario.cantidad_minima`. Este valor es el estado vigente de los parámetros de inventario — modificable por el comprador vía el modal de min/max. Las RPCs `get_items_desabasto_critico`, `get_sugerencias_compra`, `get_items_proximos_desabasto`, y `get_planeacion_inventario` leen directamente de `inventario.cantidad_minima`. El helper `_calcular_recomendados` calcula el valor algorítmico sugerido (`demanda_diaria_promedio_90d × 21`) que aparece como "Mín. recomendado" en Tab Planeación; este helper NO determina el mínimo operativo — solo es una recomendación visible para que el comprador decida si aceptarla o no.
 
-21. **El módulo Compras acepta `?tab=pronostico|planeacion|compras` para deep-linking.** Solo entrada — el cambio manual de tab no actualiza la URL.
+21. **El módulo Compras acepta `?tab=pronostico|planeacion|ordenes-compra` para deep-linking.** Solo entrada — el cambio manual de tab no actualiza la URL. El slug anterior `compras` sigue siendo aceptado por compatibilidad y se mapea a `ordenes-compra`.
 
 22. **Búsqueda de productos usa `pg_trgm` para tolerar typos.** Extensión activada con índices GIN en `productos.sku` y `productos.nombre`. Threshold de similitud bajado a 0.2 dentro de la función. Para términos de 1-2 caracteres usa ILIKE como fallback. Limitación conocida: transposiciones de caracteres adyacentes (ej: "tonrillo") no se encuentran con el threshold actual.
 
@@ -227,7 +224,11 @@ Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tiene
 
 25. **Métricas de tiempo del comprador siempre desde `acciones_comprador`.** No dupliques timestamps por tipo de acción en `po_sugeridas` ni en otras tablas de dominio. Los timestamps que existen en `po_sugeridas` (`generada_en`, `actualizada_en`, `fecha_revision`) son para display del estado actual de la PO, no para métricas agregadas. Cualquier cálculo de "tiempo promedio", "cantidad de acciones en periodo", o similar, se computa leyendo `acciones_comprador`. Esta regla aplica también a acciones futuras que agreguemos (ej: overrides de min/max en Fase 4B).
 
-26. **`acciones_comprador` cubre dos `entidad_tipo`: `po_sugerida` y `min_max_override`.** Cuando se agreguen tipos nuevos en el futuro, actualizar el CHECK constraint y documentar acá. La RPC `get_historial_comprador` ya maneja polimorfismo de display según `entidad_tipo`: links a PO para `po_sugerida`, links a producto para `min_max_override`.
+26. **`acciones_comprador` cubre dos `entidad_tipo`: `po_sugerida` e `inventario`.** Para acciones de tipo `inventario` (overrides de min/max), el `entidad_id` es NULL y el par `(producto_id, bodega_id)` vive en el metadata JSONB. La RPC `get_historial_comprador` maneja polimorfismo de display según `entidad_tipo`: acciones sobre `po_sugerida` linkean a detalle de PO, acciones sobre `inventario` linkean a detalle del producto.
+
+27. **Sistema de jerarquía de texto en gris.** El producto usa 4 niveles de texto sobre fondo blanco, en orden de prominencia: `text-gray-900` (principal), `text-gray-700` (secundario), `text-gray-500` (terciario/metadata), `text-gray-400` (placeholders y deshabilitado). NO usar `text-gray-300` o más claro para texto, porque falla WCAG AA. Los grises más claros (`gray-200`, `gray-100`, `gray-50`) están reservados para bordes, fondos y dividers, no para texto.
+
+28. **El badge de "Rec./Custom" en Tab Planeación se deriva de `acciones_comprador`, no de comparación de valores.** El campo `tiene_accion_registrada` de `get_planeacion_inventario` lee de `acciones_comprador` (filtrando por `tipo_accion = 'min_max_override'` y el par producto-bodega en metadata). Si hay al menos una acción registrada, el badge aplica con el `tipo_seleccion` de la última acción. Si no hay acciones, no hay badge. NO usar comparación `min_actual === min_recomendado` porque un valor del seed casualmente distinto al recomendado se vería como "Custom" sin que nadie lo haya tocado.
 
 ## Estructura del proyecto
 
@@ -248,7 +249,8 @@ src/
 │   │   ├── compras/
 │   │   │   ├── page.tsx        — Módulo de Compras (3 tabs con ?tab= deep-linking)
 │   │   │   ├── po/[id]/page.tsx — Detalle de PO sugerida (edición, aprobación, descarte)
-│   │   │   └── mi-historial/page.tsx — Historial de acciones del comprador (Fase 4A)
+│   │   │   ├── mi-actividad/page.tsx ��� Mi actividad del comprador (Fase 4C, 2 tabs)
+│   │   │   └── mi-historial/page.tsx — Redirect a mi-actividad?tab=historial (legacy)
 │   │   ├── clientes/
 │   │   │   ├── page.tsx        — Lista de clientes
 │   │   │   └── [id]/page.tsx   — Detalle de cliente
@@ -293,6 +295,8 @@ src/
 │       │   ├── SeccionDesabastoCritico.tsx — Top 10 items en desabasto
 │       │   ├── SeccionProximosDesabasto.tsx — Top 10 próximos a desabasto
 │       │   └── SeccionAlertasInventario.tsx — 3 tarjetas informativas
+│       ├── compras/mi-actividad/
+│       │   └── MiActividadTabs.tsx        — Tabs Actividad reciente + Historial completo (Fase 4C)
 │       ├── compras/mi-historial/
 │       │   ├── FiltrosHistorial.tsx       — Filtros de fecha y tipo ('use client')
 │       │   ├── ResumenHistorial.tsx       — Banner con resumen del periodo (polimórfico POs + overrides)
@@ -331,7 +335,7 @@ src/
 │   ├── auth/
 │   │   ├── roles.ts            — Tipos Rol, UsuarioActual + calcularRolPrimario + paginaAterrizajePorRol
 │   │   └── usuario-actual.ts   — getUsuarioActual() (server-only, usa supabase-server)
-│   ├── queries/                — 38 archivos, una query por archivo
+│   ├── queries/                — 40 archivos, una query por archivo
 │   │   ├── types.ts            — Tipos TS compartidos
 │   │   ├── kpis.ts, ingresos-mensuales.ts, top-skus.ts, deadstock.ts
 │   │   ├── clientes-en-riesgo.ts, rendimiento-vendedores.ts, alertas-margen.ts
@@ -348,8 +352,10 @@ src/
 │   │   ├── pos-sugeridas-pendientes.ts, po-sugerida-detalle.ts  — Fase 3
 │   │   ├── po-sugeridas-mutations.ts, ultima-generacion-pos.ts  — Fase 3
 │   │   ├── historial-comprador.ts  — Fase 4A
-│   │   ├── min-max-overrides.ts  — Fase 4B (lectura, upsert, bulk)
+│   │   ├── min-max-overrides.ts  — Fase 4B (upsert en inventario, bulk)
 │   │   ├── calculo-recomendado.ts  — Fase 4B (componentes de fórmula para popover)
+│   │   ├── pos-por-revisor.ts  — Fase 4C (POs asignadas a un comprador, todos los estados)
+│   │   ├── overrides-recientes.ts  — Fase 4C (últimos overrides de min/max del comprador)
 │   │   └── (todos con paginación defensiva .range() si pueden exceder 1000 filas)
 │   ├── textos/
 │   │   ├── pluralizar.ts       — Concordancia gramatical español
@@ -403,7 +409,7 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Sección de desabasto crítico con top 10 y link a listado completo (pendiente)
 - Sección de próximos a desabasto con horizonte de 14 días
 - Sección de alertas de inventario: deadstock, sobrestock, sin movimiento reciente (3 tarjetas informativas)
-- Ventana de cálculo de demanda: 90 días fijos. Fórmula unificada: `stock < demanda_diaria × 21`
+- Ventana de cálculo de demanda: 90 días fijos. Criterio de desabasto: `stock < inventario.cantidad_minima`
 
 **POs sugeridas persistentes (Fase 3):**
 - Tabla `po_sugeridas` con líneas como JSONB array editable
@@ -413,6 +419,15 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Modal de descarte con notas obligatorias, botón Aprobar con confirmación
 - Búsqueda typo-tolerant con `pg_trgm` (threshold 0.2) en buscador de productos
 - Lead time inline (placeholder 14 días) en tab Compras y en líneas de PO
+
+**Mi actividad del comprador (Fase 4C):**
+- Página `/dashboard/compras/mi-actividad` con 2 tabs: Actividad reciente + Historial completo
+- Tab Actividad reciente con 4 secciones: POs en revisión por mí (con badge urgencia y botón "Continuar revisión"), aprobadas recientes (cards clickeables), descartadas recientes (con motivo), ajustes de inventario recientes (overrides min/max con ProductoLink)
+- Tab Historial completo: migrado desde `/dashboard/compras/mi-historial` — mismos componentes (FiltrosHistorial, ResumenHistorial, TablaHistorial), filtros por query params funcionan igual
+- Sidebar actualizado: "Mi historial" → "Mi actividad" con nueva ruta
+- Ruta vieja `/dashboard/compras/mi-historial` redirige a `/dashboard/compras/mi-actividad?tab=historial`
+- Deep-linking con `?tab=historial` para abrir directo en el tab de historial
+- RPCs: `get_pos_por_revisor` y `get_overrides_recientes`
 
 ## Convenciones de código
 
