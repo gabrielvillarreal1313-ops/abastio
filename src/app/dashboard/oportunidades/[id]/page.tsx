@@ -12,6 +12,7 @@ import { formatMXN, formatMXNTabla, formatPct, formatUnidades } from '@/lib/text
 import { conConteo } from '@/lib/textos/pluralizar';
 import { AccionesCotizacion } from '@/components/dashboard/oportunidades/AccionesCotizacion';
 import { BotonVolver } from '@/components/ui/BotonVolver';
+import { ToastListener } from '@/components/ui/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,7 @@ export default async function CotizacionDetallePage({ params }: { params: { id: 
 
   return (
     <>
+      <ToastListener />
       {/* Header */}
       <div className="mb-8">
         <BotonVolver texto="Volver a oportunidades" />

@@ -7,14 +7,16 @@
 import { Suspense } from 'react';
 import { getClientesLista } from '@/lib/queries/clientes-lista';
 import { getVendedoresLista } from '@/lib/queries/vendedores-lista';
+import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 import { WizardCotizacion } from '@/components/dashboard/oportunidades/WizardCotizacion';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NuevaCotizacionPage() {
-  const [clientes, vendedores] = await Promise.all([
+  const [clientes, vendedores, usuario] = await Promise.all([
     getClientesLista(),
     getVendedoresLista(),
+    getUsuarioActual(),
   ]);
 
   const clientesSimple = clientes.map((c) => ({
@@ -39,7 +41,7 @@ export default async function NuevaCotizacionPage() {
       </div>
 
       <Suspense fallback={<div className="flex items-center justify-center py-16"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
-        <WizardCotizacion clientes={clientesSimple} vendedores={vendedoresSimple} />
+        <WizardCotizacion clientes={clientesSimple} vendedores={vendedoresSimple} vendedorIdLogueado={usuario?.vendedorId ?? undefined} />
       </Suspense>
     </>
   );

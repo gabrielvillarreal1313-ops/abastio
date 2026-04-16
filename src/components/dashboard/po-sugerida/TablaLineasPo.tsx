@@ -93,7 +93,7 @@ export function TablaLineasPo({
             </p>
           ) : (
             <p className="text-gray-400 text-sm">
-              Esta PO no tiene líneas. Agrega items o descártala.
+              Esta orden no tiene ítems. Agrega productos con el botón &lsquo;+ Agregar ítem&rsquo;.
             </p>
           )}
         </div>

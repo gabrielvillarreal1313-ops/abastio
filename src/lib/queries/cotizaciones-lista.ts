@@ -21,8 +21,11 @@ export interface CotizacionLista {
   notas: string;
 }
 
-export async function getCotizacionesLista(): Promise<CotizacionLista[]> {
-  const { data, error } = await supabase.rpc('get_cotizaciones_lista');
+export async function getCotizacionesLista(vendedorId?: number): Promise<CotizacionLista[]> {
+  const params: Record<string, unknown> = {};
+  if (vendedorId != null) params.p_vendedor_id = vendedorId;
+
+  const { data, error } = await supabase.rpc('get_cotizaciones_lista', params);
 
   if (error) {
     throw new Error(`Error consultando cotizaciones: ${error.message}`);

@@ -26,14 +26,15 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 ## Estado actual
 
-- **Fase:** V0 (MVP con datos sintéticos) — Fase 4C del pivot completada, producto estable
-- **Última actividad:** Fase 4C completa — Mi actividad del comprador con tabs Actividad reciente + Historial completo
-- **Siguiente:** Fase 5 del pivot (Métricas y vista de dueño sobre compras)
+- **Fase:** V0 (MVP con datos sintéticos) — Fase 9 del pivot completada, tracking de acciones del rep operativo
+- **Última actividad:** Fase 9 completa — acciones inline (Cotizar/Descartar/Posponer), oportunidades filtradas, Mi actividad del rep
+- **Siguiente:** Fase 10 del pivot (Métricas personales del rep). Roadmap restante: Fase 10 (módulo rep), Fase 11 (inteligencia de oportunidades), Fases 12-13 (Explorer + reportes), Fase 14 (polish final)
 - **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
-- **Rutas:** 18 páginas (login, resumen, tablero-ventas, tablero-compras, compras, PO detalle, mi-actividad, mi-historial redirect, clientes, productos, vendedores, oportunidades, cotizaciones)
-- **RPCs:** 60+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking, overrides)
+- **Rutas:** 20 páginas (login, resumen, tablero-ventas, mi-actividad-rep, tablero-compras, compras, PO detalle, mi-actividad, mi-desempeno, mi-historial redirect, clientes, productos, vendedores, oportunidades, cotizaciones)
+- **RPCs:** 70+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking comprador + rep, overrides)
+- **Tablas:** 14 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador + 1 oportunidades trabajadas)
 - **Tablas:** 13 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador)
 
 **Lo que está construido:**
@@ -88,6 +89,39 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - Tab Historial completo: migrado desde `/mi-historial` con filtros de fecha, tipo, y resumen del periodo
   - Sidebar actualizado ("Mi historial" → "Mi actividad"), ruta vieja redirige con `?tab=historial`
   - RPCs: `get_pos_por_revisor` (POs por revisor asignado) y `get_overrides_recientes` (últimos overrides min/max)
+- Mi desempeño del comprador (Fase 5 del pivot):
+  - Página `/dashboard/compras/mi-desempeno` con KPIs personales del mes (POs aprobadas/descartadas, valor, tiempo revisión, overrides) con comparación vs mes anterior
+  - Gráfica Recharts de barras apiladas (aprobaciones + descartes) con serie de 12 meses
+  - Entrada "Mi desempeño" en sidebar para roles comprador y dueño
+  - RPCs: `get_kpis_comprador_personal` y `get_actividad_mensual_comprador`
+- Operación de compras en Resumen Ejecutivo (Fase 5 del pivot):
+  - Sección con 4 métricas globales: valor POs aprobadas, pendientes de revisión, SKUs desabasto crítico, capital atrapado
+  - Colores condicionales rojo/verde para pendientes y desabasto, link al módulo de compras
+- Polish del módulo comprador (Fase 6 del pivot):
+  - Sistema de toasts con sonner: confirmaciones en todas las mutaciones (POs, overrides, cotizaciones) vía hook `useToastFromUrl` con pattern `?toast=CODIGO` en redirects
+  - Estados vacíos amigables en 8 componentes (mensajes contextuales en español cuando no hay datos o filtros no retornan resultados)
+  - Loading skeletons (`loading.tsx`) en 5 rutas del módulo comprador con `animate-pulse`
+  - Verificación end-to-end: 14/15 checks pasaron en flujos comprador (María) y dueño (Roberto)
+- Tablero de ventas del rep (Fase 7 del pivot):
+  - Página `/dashboard/tablero-ventas` con header personalizado, 6 KPI cards con comparación vs mes anterior
+  - Oportunidades de mayor valor (top 7 con "Crear cotización"), cotizaciones pendientes (borradores + enviadas), clientes en riesgo (declive/inactivo)
+  - Filtrado por vendedor en RPCs: `get_clientes_en_riesgo(p_vendedor_id)`, `get_cotizaciones_lista(p_vendedor_id)`, `get_kpis_rep_mes(p_vendedor_id)`
+  - Sidebar dinámico: dueño ve 10 items, comprador 5, rep 4. Dueño puede acceder a ambos tableros
+  - Loading skeleton + estados vacíos amigables
+- Velocidad de cotización (Fase 8 del pivot):
+  - Auto-asignación de vendedor logueado al abrir wizard (prop `vendedorIdLogueado`)
+  - Stock total inline en dropdown de búsqueda de productos ("Stock: N" o "Sin stock" en rojo)
+  - Botón duplicar línea en tabla del wizard (copia con nuevo key, inserta debajo)
+  - Atajos de teclado: Enter agrega primer resultado de búsqueda, Escape cierra dropdown
+  - RPC `get_productos_busqueda` ahora retorna `stock_total`
+- Tracking de acciones del rep (Fase 9 del pivot):
+  - Tabla `oportunidades_trabajadas` con acciones cotizada/descartada/pospuesta por par vendedor-cliente
+  - Botones inline Cotizar/Descartar/Posponer en cada oportunidad del Tablero de ventas
+  - Modales de descarte (notas) y posposición (date picker + quick picks)
+  - Oportunidades trabajadas se ocultan del tablero; pospuestas reaparecen con badge "Regresó"
+  - Header con contadores: pendientes, trabajadas hoy, pospuestas activas
+  - Página `/dashboard/tablero-ventas/mi-actividad` con 4 cards de resumen + tabla filtrable de acciones
+  - RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
 
 ## Decisiones tomadas
 
@@ -191,105 +225,42 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 - Sidebar actualizado, ruta vieja redirige, deep-linking con `?tab=historial`
 - RPCs: `get_pos_por_revisor`, `get_overrides_recientes`
 
-**Siguiente: Fase 5 — Métricas y vista de dueño sobre compras (semana 10, ~10 horas)**
+**Fase 5 — Métricas y vista de dueño sobre compras (completada):**
+- Página `/dashboard/compras/mi-desempeno` con KPIs personales (POs aprobadas/descartadas, valor, tiempo revisión, overrides) + comparación vs mes anterior
+- Gráfica Recharts de barras apiladas (aprobaciones + descartes) con serie de 12 meses
+- Sección "Operación de compras" en Resumen Ejecutivo con 4 métricas globales y colores condicionales
+- RPCs: `get_kpis_comprador_personal`, `get_actividad_mensual_comprador`
+- Sidebar: entrada "Mi desempeño" para comprador y dueño
 
-Objetivo: Que el dueño pueda supervisar la operación de compras desde su Resumen Ejecutivo, y que el comprador tenga su página de "Mi desempeño" análoga a la del rep.
+**Fase 6 — Polish del módulo comprador (completada):**
+- Toasts con sonner: confirmaciones en todas las mutaciones vía `?toast=CODIGO` en redirects
+- Estados vacíos amigables en 8 componentes (mensajes en español, centrados, `text-gray-400`)
+- Loading skeletons en 5 rutas (`loading.tsx` con `animate-pulse`)
+- Verificación end-to-end: flujos comprador (María) y dueño (Roberto), 14/15 checks pasaron
+- Hito: módulo del comprador funcional y pulido. Arranca el rep.
 
-Trabajo:
+**Fase 7 — Tablero de ventas del rep (completada):**
+- Página `/dashboard/tablero-ventas` con header personalizado, 6 KPI cards, oportunidades top 7, cotizaciones pendientes, clientes en riesgo
+- Filtrado por vendedor en RPCs: `get_clientes_en_riesgo`, `get_cotizaciones_lista`, `get_lista_oportunidades`, `get_kpis_rep_mes`
+- Sidebar dinámico: dueño ve todo (10 items), comprador 5, rep 4
+- Loading skeleton + estados vacíos amigables
+- Nota: renombrado de "Mi día del rep" a "Tablero de ventas" por consistencia con "Tablero de compras"
 
-Para el comprador:
+**Fase 8 — Velocidad de cotización (completada):**
+- Auto-asignación de vendedor logueado al wizard (prop `vendedorIdLogueado`)
+- Stock inline en búsqueda de productos (`get_productos_busqueda` retorna `stock_total`)
+- Botón duplicar línea con ícono de copiar
+- Atajos de teclado: Enter agrega primer resultado, Escape cierra dropdown
+- Búsqueda typo-tolerant ya existía desde Fase 3 (pg_trgm, threshold 0.2)
 
-- Página `/dashboard/compras/mi-desempeno` (visible solo para rol comprador)
-- KPIs personales del mes:
-  - POs generadas y aprobadas
-  - Valor total movido
-  - Tasa de stockouts evitados (% de items en desabasto crítico que fueron resueltos vs no resueltos)
-  - Tiempo promedio de revisión de POs
-  - Comparación contra mes anterior
-- Gráfica histórica de actividad mensual (POs por mes)
-- Top categorías compradas
-- Top proveedores (placeholder por ahora)
+**Fase 9 — Tracking de acciones del rep (completada):**
+- Tabla `oportunidades_trabajadas` con acciones cotizada/descartada/pospuesta
+- Botones inline Cotizar/Descartar/Posponer con modales de confirmación
+- Oportunidades trabajadas se ocultan del tablero, pospuestas reaparecen con badge
+- Página Mi actividad del rep con cards + tabla filtrable
+- RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
 
-Para el dueño:
-
-- Agregar sección "Operación de compras" al Resumen Ejecutivo:
-  - Valor de POs aprobadas en el mes
-  - SKUs en desabasto crítico (count)
-  - Capital atrapado en deadstock + sobrestock
-  - Click lleva al módulo de Compras o a Mi día comprador (vista del dueño)
-
-Criterio de éxito:
-Como comprador, abro Mi desempeño y veo cómo me fue este mes. Como dueño, en mi Resumen Ejecutivo veo el pulso de la operación de compras sin tener que entrar al módulo entero.
-
-**Fase 6 — Polish del módulo comprador (semana 11, ~10 horas)**
-
-Objetivo: Que la experiencia del comprador esté pulida antes de pasar al rep.
-
-Trabajo:
-
-- Estados vacíos amigables (cuando no hay items en desabasto, mostrar "Tu inventario está saludable")
-- Loading states consistentes
-- Toasts de confirmación al aprobar/descartar POs
-- Verificar que la búsqueda global funciona desde Mi día comprador
-- Verificar que el flujo end-to-end funciona: login como comprador → Mi día → revisar PO → aprobar → ver en historial → ver reflejado en métricas
-- Capturar screenshots del flujo del comprador para deck de demo
-
-Criterio de éxito:
-Puedes mostrar el flujo completo del comprador a alguien sin avergonzarte de bugs o inconsistencias.
-
-Hito: Aquí termina la mitad del pivot. Tienes el módulo del comprador funcional y pulido. Ahora arrancas con el rep.
-
-**Fase 7 — Mi día del rep (semana 12, ~15 horas)**
-
-Objetivo: Crear la página de aterrizaje del rep, equivalente a lo que hicimos para el comprador.
-
-Trabajo:
-
-- Crear ruta `/dashboard/mi-dia`
-- Header personal: "Hola [rep]. Tienes 8 oportunidades de alto valor por trabajar hoy."
-- Secciones:
-  - Top oportunidades del día (5-7 filas): mezcla priorizada de recompras tardías + cross-sell de mayor valor para los clientes asignados a este rep. Cada fila clickeable lleva al detalle del cliente. Botón inline "Crear cotización."
-  - Cotizaciones pendientes de seguimiento: borradores que llevan más de N días sin tocar + cotizaciones enviadas cuya validez está por vencer
-  - Mis clientes en riesgo: clientes asignados a este rep que aparecen en clientes en riesgo
-  - Mis métricas del mes: ingresos generados, cotizaciones, % conversión (placeholder hasta tener tracking real)
-- Modificar las RPCs de oportunidades para aceptar `p_vendedor_id` y filtrar
-- Aplicar filtros de vendedor en todas las listas relevantes cuando el usuario es solo rep
-
-Criterio de éxito:
-Como rep, abro la app y en 5 segundos sé qué hacer hoy. Como dueño, sigo viendo Resumen Ejecutivo. Como dueño-comprador-vendedor, puedo cambiar entre las tres vistas según lo que necesite hacer.
-
-**Fase 8 — Velocidad y fricción de cotización (semana 13, ~12 horas)**
-
-Objetivo: Hacer que crear una cotización sea tan rápido como en Recurrency.
-
-Trabajo:
-
-- Auto-asignar el vendedor logueado al wizard
-- Pasar las recomendaciones del detalle de cliente al wizard pre-llenadas
-- Atajos de teclado (Enter/Esc/Tab)
-- Búsqueda typo-tolerant en el buscador de productos del wizard (con pg_trgm, igual que el del comprador)
-- Botón "Duplicar línea" en el wizard
-- Mostrar inventario inline en el buscador de productos
-
-Criterio de éxito:
-Crear cotización con 5 líneas en menos de 60 segundos.
-
-**Fase 9 — Tracking de acciones del rep (semana 14, ~12 horas)**
-
-Objetivo: Cerrar el loop del rep, equivalente al del comprador.
-
-Trabajo:
-
-- Tabla `oportunidades_trabajadas` con `vendedor_id`, `oportunidad_id`, fecha, acción (cotizada, descartada, pospuesta), notas
-- Botones inline en cada oportunidad: Cotizar / Descartar / Posponer
-- Las trabajadas desaparecen de Mi día pero quedan en historial
-- Vista "Mi historial" para el rep
-- Pospuestas reaparecen en la fecha programada
-
-Criterio de éxito:
-Como rep, trabajo oportunidades en la mañana, las marco, y por la tarde Mi día solo muestra las que faltan.
-
-**Fase 10 — Métricas personales del rep (semana 15, ~10 horas)**
+**Siguiente: Fase 10 — Métricas personales del rep (semana 15, ~10 horas)**
 
 Objetivo: Análoga a Mi desempeño del comprador.
 
@@ -303,21 +274,71 @@ Trabajo:
 Criterio de éxito:
 Como rep, veo mi progreso del mes y me motiva a usar la herramienta.
 
-**Fase 11 — Polish final y demo prep (semana 16, ~10 horas)**
+**Fase 11 — Inteligencia de oportunidades (semana 17-18, ~20 horas)**
 
-Objetivo: Que todo el producto esté pulido para mostrarse.
+Objetivo: Que cada recomendación de venta tenga contexto profundo que genere confianza en el vendedor. Pasar de "quizás le interese" a "va a necesitar esto la próxima semana".
 
 Trabajo:
 
-- Estados vacíos en todas las páginas
-- Loading states consistentes
-- Toasts en todas las mutaciones
+- Análisis de cadencia por par cliente-SKU: calcular intervalo promedio de compra, detectar si el cliente está atrasado, y predecir fecha estimada de próxima compra
+- Enriquecer las oportunidades de recompra con contexto: "Este cliente compra este producto cada ~45 días. Última compra hace 52 días — probablemente necesita reorden pronto"
+- Detección de estacionalidad simple (sin ML): comparar compras del mismo mes del año anterior para cada par cliente-SKU. Etiquetar como "Este cliente suele comprar este producto en esta época del año" cuando hay patrón
+- Tabs de contexto por recomendación en el panel de oportunidades del cliente: Cadencia (intervalo, historial de compras), Uso (volúmenes, tendencia), Estacional (comparación mes a mes)
+- Integrar el contexto enriquecido en el wizard de cotizaciones (panel de recomendaciones) y en Mi día del rep (Fase 7)
+
+Criterio de éxito:
+Como rep, abro una oportunidad de recompra y veo exactamente por qué el sistema la está sugiriendo, con datos concretos que puedo usar en la llamada al cliente.
+
+**Fase 12 — Explorer: vista multidimensional de datos (semana 19-20, ~20 horas)**
+
+Objetivo: Que cualquier usuario pueda explorar los datos transaccionales libremente, pivotando por cualquier dimensión, sin depender de vistas preconstruidas.
+
+Trabajo:
+
+- Crear página `/dashboard/explorer` con tabla multidimensional
+- Dimensiones pivotables: Bodegas, Vendedores, Clientes, Destinos (Ship To), Categorías de producto, Productos, Meses
+- Métricas por fila: Ventas YTD, Ventas año anterior (LYTD), Delta ventas ($, %), Margen bruto YTD, Margen LYTD, Delta margen ($, %), sparkline de tendencia
+- Filtros cruzados: seleccionar una fila aplica como filtro a la siguiente dimensión (ej: click en un vendedor filtra para ver solo sus clientes)
+- Botón "Apply" por fila que navega al detalle de la entidad
+- Sorting por cualquier columna
+- Buscador dentro de cada vista
+- RPCs parametrizadas que acepten la dimensión como argumento y retornen las métricas agregadas con comparación YTD vs LYTD
+
+Criterio de éxito:
+Como dueño, puedo responder "¿cuáles productos perdieron más margen este año vs el anterior en la zona de Querétaro?" en menos de 30 segundos.
+
+**Fase 13 — Reportes guardados y dashboard personalizable (semana 21, ~12 horas)**
+
+Objetivo: Que cada usuario pueda guardar las vistas del Explorer que más usa y acceder a ellas rápidamente.
+
+Trabajo:
+
+- Botón "Guardar como reporte" en el Explorer que captura: dimensión activa, filtros aplicados, ordenamiento, y nombre del reporte
+- Tabla `reportes_guardados` con `usuario_id`, `nombre`, `configuracion` (JSONB), timestamps
+- Página `/dashboard/reportes` que lista los reportes guardados del usuario con fecha de creación y acciones (abrir, eliminar)
+- Capacidad de anclar reportes al dashboard principal del usuario (sección "Reportes anclados" en el Resumen Ejecutivo o en el tablero de aterrizaje según el rol)
+- Reportes predefinidos por tipo de usuario: "Top Territories", "Top Customers", "Top Items" (los 3 que Recurrency muestra como defaults)
+
+Criterio de éxito:
+Como dueño, guardo "Clientes con margen en declive" como reporte, lo anclo a mi dashboard, y cada vez que abro el producto lo veo actualizado sin configurar nada.
+
+**Fase 14 — Polish final y demo prep (semana 22, ~10 horas)**
+
+Objetivo: Que todo el producto esté pulido para mostrarse a inversionistas y primeros clientes.
+
+Trabajo:
+
+- Identidad visual: definir color de acento, jerarquía tipográfica, personalidad del sidebar y cards
+- Estados vacíos en todas las páginas que falten (explorer, reportes, tablero del rep)
+- Loading states consistentes en páginas nuevas
+- Toasts en todas las mutaciones nuevas
 - Screenshots de los tres flujos (rep, comprador, dueño) para deck
 - Documentación completa en CONTEXTO_PROYECTO.md, BACKLOG.md, CLAUDE.md
 - Verificar los flujos end-to-end de los tres roles
+- Regenerar el seed con distribución realista de inventario (actualmente ~97% en stock cero)
 
 Criterio de éxito:
-Puedes mostrar el producto completo a un inversionista o cliente potencial.
+Puedes mostrar el producto completo a un inversionista o cliente potencial sin pedir disculpas por nada.
 
 **Crítico antes del demo (fuera del cronograma de fases):** Regenerar el seed con distribución realista de inventario. Hoy ~97% del inventario está en stock cero. Distribución target: ~70% saludable, ~15% sobrestock, ~10% próximo a desabasto, ~5% desabasto crítico.
 
@@ -356,6 +377,32 @@ Puedes mostrar el producto completo a un inversionista o cliente potencial.
 | Epicor Prophet 21 integration | N/A | Recurrency usa P21; nosotros usaremos SAP B1 / CONTPAQi / Aspel |
 | Pricing dinámico desde forecasting | N/A en V0 | Feature diferido a módulo de Sales intelligence |
 
+## Paridad con Recurrency — Sales Intelligence
+
+| Feature de Recurrency | Estado | Notas |
+|------------------------|--------|-------|
+| Opportunities: lista priorizada | Implementado | Recompras + cross-sell con cache pre-computado |
+| Cadencia por par cliente-SKU | Backlog Fase 11 | Intervalo promedio, predicción de próxima compra |
+| Estacionalidad por par cliente-SKU | Backlog Fase 11 | Comparación mes a mes sin ML |
+| Tabs Cadence/Usage/Seasonal | Backlog Fase 11 | Contexto profundo por recomendación |
+| Crear cotización desde oportunidad | Implementado | Wizard 3 pasos con recomendaciones |
+| Draft Quotes | Implementado | Borradores con auto-guardado |
+| Quote → Order workflow | Backlog V1 | Requiere integración ERP |
+| Upsell en órdenes inbound | Backlog V2 | Recomendaciones al recibir orden |
+
+## Paridad con Recurrency — Explorer / Reporting
+
+| Feature de Recurrency | Estado | Notas |
+|------------------------|--------|-------|
+| Explorer multidimensional | Backlog Fase 12 | Pivot por 7 dimensiones |
+| YTD vs LYTD con deltas | Backlog Fase 12 | Ventas y margen |
+| Sparklines por fila | Backlog Fase 12 | Tendencia inline |
+| Filtros cruzados | Backlog Fase 12 | Click en fila filtra siguiente dimensión |
+| Guardar como reporte | Backlog Fase 13 | Nombre + configuración JSONB |
+| Anclar al dashboard | Backlog Fase 13 | Reportes favoritos en vista principal |
+| Reportes predefinidos por rol | Backlog Fase 13 | Top Territories/Customers/Items |
+| Búsqueda global (keyword) | Implementado | Ctrl+K en header |
+
 ---
 
 ## Cómo usar este documento
@@ -366,4 +413,4 @@ Puedes mostrar el producto completo a un inversionista o cliente potencial.
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-15 (Fase 4C completada — Mi actividad del comprador)
+**Última actualización:** 2026-04-15 (Fase 9 completada — Tracking de acciones del rep)

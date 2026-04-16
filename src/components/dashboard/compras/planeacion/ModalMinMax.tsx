@@ -3,9 +3,8 @@
 /**
  * ModalMinMax.tsx — Modal para configurar override de min/max por par producto-bodega.
  *
- * Permite elegir entre valores recomendados (calculados), valores del ERP (deshabilitado
- * hasta integración), o valores personalizados con motivo obligatorio.
- * Incluye historial de cambios previos del par.
+ * Permite elegir entre valores recomendados (calculados) o valores personalizados
+ * con motivo obligatorio. Incluye historial de cambios previos del par.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -30,7 +29,7 @@ interface Props {
   onCerrar: () => void;
 }
 
-type TipoSeleccion = 'recomendado' | 'personalizado';
+type TipoSeleccion = 'recomendado' | 'personalizado' | '';
 
 // ─── Componente ─────────────────────────────────────────────────────────────
 
@@ -48,7 +47,7 @@ export function ModalMinMax({
   onCerrar,
 }: Props) {
   // Estado del formulario
-  const [tipo, setTipo] = useState<TipoSeleccion>('recomendado');
+  const [tipo, setTipo] = useState<TipoSeleccion>('');
   const [minPersonalizado, setMinPersonalizado] = useState<string>('');
   const [maxPersonalizado, setMaxPersonalizado] = useState<string>('');
   const [motivo, setMotivo] = useState('');
@@ -88,14 +87,24 @@ export function ModalMinMax({
       });
       setHistorial(histFiltrado);
 
-      // Pre-selección: si min_actual difiere de min_recomendado, es personalizado
-      const esPersonalizado = minActual !== minRecomendado;
-      if (esPersonalizado) {
-        setTipo('personalizado');
-        setMinPersonalizado(String(minActual));
-        setMaxPersonalizado(String(maxActual));
+      // Pre-selección basada en acciones previas (regla 28 de CLAUDE.md)
+      // Si hay historial de overrides para este par, usar el tipo de la última acción.
+      // Si no hay historial, nadie ha tocado este ítem → no pre-seleccionar nada.
+      if (histFiltrado.length > 0) {
+        const ultimaAccion = histFiltrado[0]; // ya viene ORDER BY creada_en DESC
+        const ultimoTipo = (ultimaAccion.metadata?.tipo_seleccion as string) ?? 'personalizado';
+        if (ultimoTipo === 'recomendado') {
+          setTipo('recomendado');
+          setMinPersonalizado('');
+          setMaxPersonalizado('');
+        } else {
+          setTipo('personalizado');
+          setMinPersonalizado(String(minActual));
+          setMaxPersonalizado(String(maxActual));
+        }
       } else {
-        setTipo('recomendado');
+        // Nadie ha intervenido → no pre-seleccionar, el comprador decide
+        setTipo('' as TipoSeleccion);
         setMinPersonalizado('');
         setMaxPersonalizado('');
       }
@@ -115,6 +124,11 @@ export function ModalMinMax({
 
   function validar(): boolean {
     setErrorValidacion(null);
+
+    if (tipo === '') {
+      setErrorValidacion('Selecciona una opción antes de guardar.');
+      return false;
+    }
 
     if (tipo === 'recomendado') {
       if (!calculo || calculo.demandaDiariaPromedio <= 0) {
@@ -174,7 +188,7 @@ export function ModalMinMax({
       await upsertMinMaxOverride({
         producto_id: productoId,
         bodega_id: bodegaId,
-        tipo_seleccion: tipo,
+        tipo_seleccion: tipo as 'recomendado' | 'personalizado',
         minimo: minVal,
         maximo: maxVal,
         notas,
@@ -185,6 +199,7 @@ export function ModalMinMax({
       // Forzar ?tab=planeacion para que el refresh vuelva al tab correcto
       const url = new URL(window.location.href);
       url.searchParams.set('tab', 'planeacion');
+      url.searchParams.set('toast', 'override_guardado');
       window.location.href = url.toString();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando override');
@@ -256,6 +271,12 @@ export function ModalMinMax({
                 <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
               )}
 
+              {/* ─── Valores actuales (contexto) ─────────────────────── */}
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valores actuales</p>
+                <p className="text-sm text-gray-700">Mín: {formatUnidades(minActual)} · Máx: {formatUnidades(maxActual)}</p>
+              </div>
+
               {/* ─── Opción 1: Recomendado ──────────────────────────── */}
               <label
                 className={`flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
@@ -317,30 +338,7 @@ export function ModalMinMax({
                 </div>
               </label>
 
-              {/* ─── Opción 2: Actual en ERP (deshabilitado) ────────── */}
-              <div
-                className="flex items-start gap-3 rounded-lg border border-gray-200 p-4 cursor-not-allowed opacity-60"
-                title="Esta opción estará disponible cuando se conecte SAP B1 o CONTPAQi en producción."
-              >
-                <input
-                  type="radio"
-                  name="tipo_seleccion"
-                  value="actual_erp"
-                  disabled
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-400">Actual en ERP</span>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Mín: — · Máx: —
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Disponible con integración SAP B1 / CONTPAQi
-                  </p>
-                </div>
-              </div>
-
-              {/* ─── Opción 3: Personalizado ────────────────────────── */}
+              {/* ─── Opción 2: Personalizado ────────────────────────── */}
               <label
                 className={`flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
                   tipo === 'personalizado' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-300'

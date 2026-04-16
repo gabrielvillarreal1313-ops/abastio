@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import { getListaOportunidades } from '@/lib/queries/oportunidades-lista';
 import { getCotizacionesLista } from '@/lib/queries/cotizaciones-lista';
 import { OportunidadesTabs } from '@/components/dashboard/oportunidades/OportunidadesTabs';
+import { ToastListener } from '@/components/ui/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export default async function OportunidadesPage() {
 
   return (
     <>
+      <ToastListener />
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Oportunidades</h1>

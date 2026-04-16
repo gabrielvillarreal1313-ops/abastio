@@ -25,8 +25,11 @@ export interface ClientesEnRiesgoData {
   totalIngresosPotenciales: number;
 }
 
-export async function getClientesEnRiesgo(): Promise<ClientesEnRiesgoData> {
-  const { data, error } = await supabase.rpc('get_clientes_en_riesgo');
+export async function getClientesEnRiesgo(vendedorId?: number): Promise<ClientesEnRiesgoData> {
+  const params: Record<string, unknown> = {};
+  if (vendedorId != null) params.p_vendedor_id = vendedorId;
+
+  const { data, error } = await supabase.rpc('get_clientes_en_riesgo', params);
 
   if (error) {
     throw new Error(`Error consultando clientes en riesgo: ${error.message}`);

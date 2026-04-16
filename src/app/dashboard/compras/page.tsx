@@ -8,6 +8,7 @@ import { getPlaneacionInventario } from '@/lib/queries/planeacion-inventario';
 import { getSugerenciasCompra } from '@/lib/queries/sugerencias-compra';
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 import { ComprasTabs } from '@/components/dashboard/compras/ComprasTabs';
+import { ToastListener } from '@/components/ui/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export default async function ComprasPage({
 
   return (
     <>
+      <ToastListener />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Compras</h1>

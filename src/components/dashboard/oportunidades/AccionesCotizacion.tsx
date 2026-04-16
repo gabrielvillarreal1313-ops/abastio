@@ -29,7 +29,6 @@ interface Props {
 
 export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: Props) {
   const [ejecutando, setEjecutando] = useState(false);
-  const [toast, setToast] = useState('');
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
 
   const cotLabel = `COT-${String(numeroCotizacion).padStart(4, '0')}`;
@@ -44,10 +43,8 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
     setEjecutando(true);
     try {
       await actualizarEstadoCotizacion(cotizacionId, 'enviada');
-      setToast('Cotización enviada. Integración con ERP disponible en V1.');
-      setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=cotizaciones'; }, 1500);
-    } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      window.location.href = '/dashboard/oportunidades?tab=cotizaciones&toast=cotizacion_enviada';
+    } catch {
       setEjecutando(false);
     }
   };
@@ -56,10 +53,8 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
     setEjecutando(true);
     try {
       await actualizarEstadoCotizacion(cotizacionId, 'completada');
-      setToast('Cotización marcada como completada.');
-      setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=cotizaciones'; }, 1500);
-    } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      window.location.href = '/dashboard/oportunidades?tab=cotizaciones&toast=cotizacion_completada';
+    } catch {
       setEjecutando(false);
     }
   };
@@ -69,10 +64,8 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
     setEjecutando(true);
     try {
       await eliminarCotizacion(cotizacionId);
-      setToast('Borrador eliminado.');
-      setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=borradores'; }, 1500);
-    } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      window.location.href = '/dashboard/oportunidades?tab=borradores&toast=cotizacion_eliminada';
+    } catch {
       setEjecutando(false);
     }
   };
@@ -82,10 +75,8 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
     setEjecutando(true);
     try {
       await actualizarEstadoCotizacion(cotizacionId, 'cancelada');
-      setToast('Cotización cancelada.');
-      setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=cotizaciones'; }, 1500);
-    } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      window.location.href = '/dashboard/oportunidades?tab=cotizaciones&toast=cotizacion_cancelada';
+    } catch {
       setEjecutando(false);
     }
   };
@@ -103,10 +94,8 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
     setEjecutando(true);
     try {
       const nuevoId = await duplicarCotizacion(cotizacionId);
-      setToast('Cotización duplicada como borrador.');
-      setTimeout(() => { window.location.href = `/dashboard/oportunidades/${nuevoId}`; }, 1500);
-    } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      window.location.href = `/dashboard/oportunidades/${nuevoId}?toast=cotizacion_duplicada`;
+    } catch {
       setEjecutando(false);
     }
   };
@@ -195,17 +184,6 @@ export function AccionesCotizacion({ cotizacionId, estado, numeroCotizacion }: P
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white rounded-lg shadow-lg px-5 py-3 flex items-center gap-3">
-          <p className="text-sm">{toast}</p>
-          <button onClick={() => setToast('')} className="text-slate-400 hover:text-white">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
     </>
   );
 }

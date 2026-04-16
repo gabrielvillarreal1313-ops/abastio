@@ -22,16 +22,25 @@ export interface OportunidadCliente {
   valor_total: number;
 }
 
-export async function getListaOportunidades(): Promise<OportunidadCliente[]> {
-  // Determinar si hay que filtrar por vendedor (solo rep puro)
-  let vendedorId: number | null = null;
-  try {
-    const usuario = await getUsuarioActual();
-    if (usuario && usuario.roles.length === 1 && usuario.roles[0] === 'rep' && usuario.vendedorId !== null) {
-      vendedorId = usuario.vendedorId;
+/**
+ * @param vendedorIdOverride — Si se pasa, filtra por este vendedor sin consultar al usuario.
+ *   Útil cuando el caller ya sabe el vendedor_id (ej: Tablero de ventas).
+ *   Si no se pasa, aplica la lógica original: filtra solo si el usuario es rep puro.
+ */
+export async function getListaOportunidades(vendedorIdOverride?: number | null): Promise<OportunidadCliente[]> {
+  // Si el caller pasó vendedorId explícito, usarlo directamente
+  let vendedorId: number | null = vendedorIdOverride ?? null;
+
+  // Si no se pasó override, determinar desde el usuario logueado (solo rep puro)
+  if (vendedorIdOverride === undefined) {
+    try {
+      const usuario = await getUsuarioActual();
+      if (usuario && usuario.roles.length === 1 && usuario.roles[0] === 'rep' && usuario.vendedorId !== null) {
+        vendedorId = usuario.vendedorId;
+      }
+    } catch {
+      // Si falla obtener usuario, continuar sin filtro
     }
-  } catch {
-    // Si falla obtener usuario, continuar sin filtro
   }
 
   const params: Record<string, unknown> = {};

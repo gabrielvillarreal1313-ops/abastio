@@ -6,6 +6,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
 import { getPoSugeridaDetalle } from '@/lib/queries/po-sugerida-detalle';
 import DetallePoSugerida from '@/components/dashboard/po-sugerida/DetallePoSugerida';
+import { ToastListener } from '@/components/ui/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,5 +17,10 @@ export default async function PaginaDetallePoSugerida({ params }: { params: { id
   const po = await getPoSugeridaDetalle(params.id);
   if (!po) notFound();
 
-  return <DetallePoSugerida poInicial={po} usuario={usuario} />;
+  return (
+    <>
+      <ToastListener />
+      <DetallePoSugerida poInicial={po} usuario={usuario} />
+    </>
+  );
 }

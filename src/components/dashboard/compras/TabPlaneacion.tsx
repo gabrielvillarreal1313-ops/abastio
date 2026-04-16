@@ -246,6 +246,7 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
       // Regla 13: refrescar forzando tab planeación
       const url = new URL(window.location.href);
       url.searchParams.set('tab', 'planeacion');
+      url.searchParams.set('toast', 'override_bulk');
       window.location.href = url.toString();
     } catch {
       setBulkCargando(false);
@@ -340,10 +341,17 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Máx. actual" colKey="max_actual" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Máx. rec." colKey="max_recomendado" align="right" /></th>
                 <th className="px-2 py-2.5 font-medium"><SortableHeader label="Δ%" colKey="delta_max" align="right" /></th>
-                <th className="px-3 py-2.5 font-medium text-center">Min/Max</th>
+                <th className="px-3 py-2.5 font-medium text-center">Ajustar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
+              {skusFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={14} className="px-8 py-12 text-center">
+                    <p className="text-sm text-gray-400">No se encontraron productos con los filtros aplicados.</p>
+                  </td>
+                </tr>
+              )}
               {skusFiltrados.map((row) => {
                 const key = itemKey(row);
                 const seleccionado = seleccionados.has(key);
@@ -393,7 +401,7 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
                             {row.tipo_ultima_accion === 'recomendado' ? 'Rec.' : 'Custom'}
                           </span>
                         ) : (
-                          'Min/Max'
+                          'Ajustar'
                         )}
                       </button>
                     </td>

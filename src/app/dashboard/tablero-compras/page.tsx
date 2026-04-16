@@ -27,6 +27,7 @@ import { SeccionPOsSugeridas } from '@/components/dashboard/tablero-compras/Secc
 import { SeccionDesabastoCritico } from '@/components/dashboard/tablero-compras/SeccionDesabastoCritico';
 import { SeccionProximosDesabasto } from '@/components/dashboard/tablero-compras/SeccionProximosDesabasto';
 import { SeccionAlertasInventario } from '@/components/dashboard/tablero-compras/SeccionAlertasInventario';
+import { ToastListener } from '@/components/ui/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,7 @@ export default async function TableroComprasPage() {
 
   return (
     <>
+      <ToastListener />
       <HeaderTablero
         nombreUsuario={usuario?.nombre ?? 'comprador'}
         conteoDesabastoCritico={desabastoCritico.length}

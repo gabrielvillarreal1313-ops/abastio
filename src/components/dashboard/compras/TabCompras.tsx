@@ -295,6 +295,13 @@ export function TabCompras({ data }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
+              {itemsFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="px-8 py-12 text-center">
+                    <p className="text-sm text-gray-400">No hay sugerencias de compra activas. El inventario está en niveles adecuados.</p>
+                  </td>
+                </tr>
+              )}
               {itemsFiltrados.map((item) => {
                 const key = itemKey(item);
                 const sel = seleccionados.has(key);

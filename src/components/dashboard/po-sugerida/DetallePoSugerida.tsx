@@ -145,7 +145,9 @@ export default function DetallePoSugerida({ poInicial, usuario }: Props) {
     try {
       const resultado = await tomarRevisionPo(po.id, usuario.id);
       if (resultado.tomada) {
-        window.location.href = window.location.href;
+        const url = new URL(window.location.href);
+        url.searchParams.set('toast', 'po_tomada');
+        window.location.href = url.toString();
       } else {
         setError('Esta PO ya está siendo revisada por otro usuario.');
       }
@@ -163,7 +165,9 @@ export default function DetallePoSugerida({ poInicial, usuario }: Props) {
     try {
       await actualizarLineasPo(po.id, usuario.id, lineasEditadas);
       try { localStorage.removeItem(STORAGE_KEY(po.id)); } catch { /* ignorar */ }
-      window.location.href = window.location.href;
+      const url = new URL(window.location.href);
+      url.searchParams.set('toast', 'po_guardada');
+      window.location.href = url.toString();
     } catch { setError('No se pudieron guardar los cambios. Intenta de nuevo.'); }
     finally { setGuardando(false); }
   }
@@ -178,7 +182,7 @@ export default function DetallePoSugerida({ poInicial, usuario }: Props) {
       }
       await aprobarPo(po.id, usuario.id);
       try { localStorage.removeItem(STORAGE_KEY(po.id)); } catch { /* ignorar */ }
-      window.location.href = '/dashboard/tablero-compras';
+      window.location.href = '/dashboard/tablero-compras?toast=po_aprobada';
     } catch { setError('No se pudo aprobar la PO. Intenta de nuevo.'); }
     finally { setGuardando(false); }
   }
@@ -193,7 +197,7 @@ export default function DetallePoSugerida({ poInicial, usuario }: Props) {
     try {
       await descartarPo(po.id, usuario.id, notas);
       try { localStorage.removeItem(STORAGE_KEY(po.id)); } catch { /* ignorar */ }
-      window.location.href = '/dashboard/tablero-compras';
+      window.location.href = '/dashboard/tablero-compras?toast=po_descartada';
     } catch { setError('No se pudo descartar la PO. Intenta de nuevo.'); }
     finally { setGuardando(false); }
   }

@@ -50,6 +50,7 @@ interface LineaCotizacion {
 interface Props {
   clientes: ClienteSimple[];
   vendedores: VendedorSimple[];
+  vendedorIdLogueado?: number;
 }
 
 // ─── Auto-guardado en localStorage ──────────────────────────────────────────
@@ -181,7 +182,7 @@ function Stepper({ pasoActual }: { pasoActual: number }) {
 
 // ─── Componente principal ───────────────────────────────────────────────────
 
-export function WizardCotizacion({ clientes, vendedores }: Props) {
+export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: Props) {
   const searchParams = useSearchParams();
   const clienteIdParam = searchParams.get('cliente_id');
   const editarId = searchParams.get('editar');
@@ -195,7 +196,7 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
   const [clienteId, setClienteId] = useState<number | null>(
     clienteIdParam ? parseInt(clienteIdParam, 10) : null
   );
-  const [vendedorId, setVendedorId] = useState<number | null>(null);
+  const [vendedorId, setVendedorId] = useState<number | null>(vendedorIdLogueado ?? null);
   const [fechaVencimiento, setFechaVencimiento] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
@@ -457,6 +458,17 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
     setLineas((prev) => prev.filter((l) => l.key !== key));
   }, []);
 
+  const duplicarLinea = useCallback((key: string) => {
+    setLineas((prev) => {
+      const idx = prev.findIndex((l) => l.key === key);
+      if (idx === -1) return prev;
+      const copia = { ...prev[idx], key: generarKey() };
+      const nueva = [...prev];
+      nueva.splice(idx + 1, 0, copia);
+      return nueva;
+    });
+  }, []);
+
   // Totales
   const subtotal = lineas.reduce((s, l) => s + totalLinea(l.precio_unitario, l.descuento_pct, l.cantidad), 0);
   const gananciaBruta = lineas.reduce((s, l) => {
@@ -505,14 +517,11 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
 
       if (estado === 'enviada') {
         await actualizarEstadoCotizacion(cotId, 'enviada');
-        setToast('Cotización enviada. Integración con ERP disponible en V1.');
-        setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=cotizaciones'; }, 1500);
+        window.location.href = '/dashboard/oportunidades?tab=cotizaciones&toast=cotizacion_enviada';
       } else if (modoEdicion) {
-        setToast('Cotización actualizada.');
-        setTimeout(() => { window.location.href = `/dashboard/oportunidades/${cotId}`; }, 1500);
+        window.location.href = `/dashboard/oportunidades/${cotId}?toast=cotizacion_actualizada`;
       } else {
-        setToast('Cotización guardada como borrador.');
-        setTimeout(() => { window.location.href = '/dashboard/oportunidades?tab=borradores'; }, 1500);
+        window.location.href = '/dashboard/oportunidades?tab=borradores&toast=cotizacion_creada';
       }
     } catch (err) {
       setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
@@ -646,6 +655,15 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
             <div className="mb-4 relative">
               <input type="text" value={busquedaProducto}
                 onChange={(e) => handleBuscarProducto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setResultadosBusqueda([]);
+                    setBusquedaProducto('');
+                  } else if (e.key === 'Enter' && resultadosBusqueda.length > 0) {
+                    e.preventDefault();
+                    agregarProducto(resultadosBusqueda[0].sku, resultadosBusqueda[0].nombre, 'manual');
+                  }
+                }}
                 placeholder="+ Agregar producto (buscar por SKU o nombre)..."
                 className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-1 focus:ring-slate-500" />
               {resultadosBusqueda.length > 0 && (
@@ -657,6 +675,11 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
                       <span className="font-mono text-xs text-gray-400 mr-2">{p.sku}</span>
                       <span className="text-gray-900">{p.nombre}</span>
                       <span className="text-xs text-gray-400 ml-2">{p.categoria}</span>
+                      <span className="text-xs ml-2">
+                        {p.stock_total > 0
+                          ? <span className="text-gray-400">· Stock: {p.stock_total}</span>
+                          : <span className="text-red-500">· Sin stock</span>}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -715,11 +738,18 @@ export function WizardCotizacion({ clientes, vendedores }: Props) {
                             {formatMXNTabla(totalLinea(l.precio_unitario, l.descuento_pct, l.cantidad))}
                           </td>
                           <td className="px-2 py-2">
-                            <button onClick={() => eliminarLinea(l.key)} className="text-gray-400 hover:text-red-600">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => duplicarLinea(l.key)} className="text-gray-400 hover:text-slate-700" title="Duplicar línea">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                                </svg>
+                              </button>
+                              <button onClick={() => eliminarLinea(l.key)} className="text-gray-400 hover:text-red-600" title="Eliminar línea">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

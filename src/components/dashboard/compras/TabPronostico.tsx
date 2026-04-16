@@ -350,6 +350,13 @@ export function TabPronostico({ data }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
+              {skusFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-8 py-12 text-center">
+                    <p className="text-sm text-gray-400">No se encontraron productos con los filtros aplicados.</p>
+                  </td>
+                </tr>
+              )}
               {skusFiltrados.map((sku) => {
                 const pronosticoHorizonte = sku.demanda_mensual_pronostico * horizonte;
                 const demandaHistoricaHorizonte = sku.demanda_mensual_historica * horizonte;

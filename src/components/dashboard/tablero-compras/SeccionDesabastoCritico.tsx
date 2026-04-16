@@ -37,7 +37,7 @@ export function SeccionDesabastoCritico({ items }: Props) {
       {items.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
           <p className="text-gray-400 text-sm">
-            Tu inventario está al día. No hay items en desabasto crítico.
+            Tu inventario está saludable — ningún ítem por debajo del mínimo.
           </p>
         </div>
       ) : (

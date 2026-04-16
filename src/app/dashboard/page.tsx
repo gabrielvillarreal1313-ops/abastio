@@ -6,6 +6,7 @@ import { getClientesEnRiesgo } from '@/lib/queries/clientes-en-riesgo';
 import { getRendimientoVendedores } from '@/lib/queries/rendimiento-vendedores';
 import { getAlertasMargen } from '@/lib/queries/alertas-margen';
 import { getResumenOportunidades, getTopClientesOportunidades } from '@/lib/queries/resumen-oportunidades';
+import { getKpisComprador } from '@/lib/queries/kpis-comprador';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { GraficaIngresosMensuales } from '@/components/dashboard/GraficaIngresosMensuales';
 import { TopSKUs } from '@/components/dashboard/TopSKUs';
@@ -14,13 +15,14 @@ import { ClientesEnRiesgo } from '@/components/dashboard/ClientesEnRiesgo';
 import { RendimientoVendedores } from '@/components/dashboard/RendimientoVendedores';
 import { AlertasMargen } from '@/components/dashboard/AlertasMargen';
 import { OportunidadesVenta } from '@/components/dashboard/OportunidadesVenta';
+import { OperacionCompras } from '@/components/dashboard/OperacionCompras';
 import { formatMXN, formatMXNCorto, formatPct, formatUnidades } from '@/lib/textos/formato';
 import { textoDiasParcial } from '@/lib/textos/callouts';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [kpis, ingresosMensuales, topSKUs, deadstock, clientesEnRiesgo, rendimientoVendedores, alertasMargen, resumenOportunidades, topClientesOportunidades] = await Promise.all([
+  const [kpis, ingresosMensuales, topSKUs, deadstock, clientesEnRiesgo, rendimientoVendedores, alertasMargen, resumenOportunidades, topClientesOportunidades, kpisComprador] = await Promise.all([
     getKPIsResumen(),
     getIngresosMensuales(),
     getTopSKUs(),
@@ -30,6 +32,7 @@ export default async function DashboardPage() {
     getAlertasMargen(),
     getResumenOportunidades(),
     getTopClientesOportunidades(5),
+    getKpisComprador(),
   ]);
 
   const parcialTag = kpis.mesParcial
@@ -107,6 +110,11 @@ export default async function DashboardPage() {
       {/* Oportunidades de venta */}
       <div className="mt-10">
         <OportunidadesVenta resumen={resumenOportunidades} topClientes={topClientesOportunidades} />
+      </div>
+
+      {/* Operación de compras */}
+      <div className="mt-10">
+        <OperacionCompras data={kpisComprador} />
       </div>
 
       {/* Rendimiento por vendedor */}

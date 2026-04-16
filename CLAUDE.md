@@ -14,7 +14,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 
 ## Stack
 
-- **Frontend:** Next.js 14 (App Router) + TypeScript estricto + Tailwind CSS
+- **Frontend:** Next.js 14 (App Router) + TypeScript estricto + Tailwind CSS + sonner (toasts)
 - **Backend/DB:** Supabase (PostgreSQL) — queries analíticas vía RPC functions
 - **Gráficas:** Recharts
 - **Deploy:** Vercel (auto-deploy desde GitHub main)
@@ -43,8 +43,11 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 **POs sugeridas (Fase 3):**
 - `po_sugeridas` — POs generadas por el sistema, agrupadas por bodega. Líneas como JSONB array editable
 
-**Tracking de acciones (Fase 4A):**
+**Tracking de acciones del comprador (Fase 4A):**
 - `acciones_comprador` — log de eventos de decisiones del comprador. Única fuente de verdad para métricas de tiempo. Tipos de acción: `po_toma_revision`, `po_aprobacion`, `po_descarte`, `po_modificacion`, `min_max_override`. Tipos de entidad: `po_sugerida` e `inventario`. Para acciones sobre inventario (overrides de min/max), el `entidad_id` es NULL y el par `(producto_id, bodega_id)` vive en el metadata JSONB.
+
+**Tracking de acciones del rep (Fase 9):**
+- `oportunidades_trabajadas` — acciones del rep sobre oportunidades de clientes. Tipos de acción: `cotizada`, `descartada`, `pospuesta`. Pospuestas tienen `fecha_reaparicion` obligatoria. Opcionalmente linkea a `cotizacion_id`
 
 **Cache de oportunidades (pre-computado con `refrescar_oportunidades()`):**
 - `oportunidades_recompra_cache` — 3,021 pares cliente-SKU vencidos
@@ -96,7 +99,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `get_oportunidades_recompra_cliente(p_cliente_id)` — lee del cache para un cliente
 - `get_oportunidades_cross_sell_cliente(p_cliente_id)` — lee del cache para un cliente
 - `get_cliente_compro_una_vez(p_cliente_id)` — SKUs con exactamente 1 compra
-- `get_productos_busqueda(p_termino)` — buscador por SKU o nombre (top 20)
+- `get_productos_busqueda(p_termino)` — buscador por SKU o nombre (top 20). Retorna `stock_total` (suma de inventario por SKU en todas las bodegas)
 - `get_precio_cliente_sku(p_cliente_id, p_sku)` — último precio pagado o precio de lista
 
 **Cotizaciones (tablas: cotizaciones + cotizacion_lineas):**
@@ -139,6 +142,21 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 **Mi actividad del comprador (Fase 4C):**
 - `get_pos_por_revisor(p_usuario_id)` — todas las POs donde el usuario es o fue revisor, sin importar estado. Ordenadas: `pendiente_revision` primero, luego por `actualizada_en` DESC. JOIN a bodegas para nombre
 - `get_overrides_recientes(p_usuario_id, p_limite DEFAULT 20)` — últimos N overrides de min/max del usuario. Resuelve producto (nombre, SKU) y bodega desde metadata JSONB de `acciones_comprador`. Extrae `tipo_seleccion`, valores antes/después
+
+**Tablero de ventas (Fase 7):**
+- `get_kpis_rep_mes(p_vendedor_id)` — KPIs del mes actual para un vendedor: ingresos, margen, transacciones, clientes activos, cotizaciones, ticket promedio, con comparación vs mes anterior
+- `get_clientes_en_riesgo(p_vendedor_id DEFAULT NULL)` — ahora acepta filtro opcional de vendedor. Sin parámetro retorna todos (comportamiento original). Con vendedor, filtra por vendedor principal del cliente
+- `get_cotizaciones_lista(p_vendedor_id DEFAULT NULL)` — ahora acepta filtro opcional de vendedor. Sin parámetro retorna todas (comportamiento original)
+
+**Mi desempeño del comprador (Fase 5):**
+- `get_kpis_comprador_personal(p_usuario_id)` — KPIs del mes actual filtrados por comprador: POs aprobadas/descartadas, valor aprobado, overrides, tiempo promedio de revisión (pares toma→cierre del usuario), comparación con mes anterior
+- `get_actividad_mensual_comprador(p_usuario_id)` — serie de 12 meses con aprobaciones, descartes, overrides, valor aprobado por mes. LEFT JOIN a generate_series para incluir meses con 0 actividad
+
+**Tracking del rep (Fase 9):**
+- `registrar_oportunidad_trabajada(p_vendedor_id, p_cliente_id, p_accion, p_notas, p_fecha_reaparicion, p_cotizacion_id)` — registra acción del rep. Valida tipo de acción y fecha obligatoria para pospuestas
+- `get_oportunidades_tablero_rep(p_vendedor_id)` — oportunidades filtradas: excluye cotizadas/descartadas, incluye pospuestas reaparecidas con badge. Campos extra: `fue_pospuesta`, `fecha_posposicion_original`
+- `get_historial_oportunidades_rep(p_vendedor_id, p_fecha_desde, p_fecha_hasta)` — historial de acciones con JOIN a clientes. Filtros opcionales por fecha. LIMIT 200
+- `get_resumen_oportunidades_rep(p_vendedor_id)` — contadores: total, trabajadas_hoy, pendientes, pospuestas_activas, descartadas_total
 
 **Estados de cotización y transiciones:**
 - `borrador` → `enviada` (Enviar a ERP) | eliminado (Cancelar → DELETE)
@@ -243,13 +261,15 @@ src/
 │   │   ├── layout.tsx          — Sidebar dinámico por roles + HeaderUsuario
 │   │   ├── page.tsx            — Resumen Ejecutivo (Server Component)
 │   │   ├── tablero-ventas/
-│   │   │   └── page.tsx        — Aterrizaje rep (placeholder Fase 7)
+│   │   │   ├── page.tsx        — Tablero de ventas del rep (Fase 7, KPIs + oportunidades + cotizaciones + riesgo)
+│   │   │   └── mi-actividad/page.tsx — Mi actividad del rep (Fase 9, historial de oportunidades trabajadas)
 │   │   ├── tablero-compras/
 │   │   │   └── page.tsx        — Tablero de compras (KPIs, POs, desabasto, alertas)
 │   │   ├── compras/
 │   │   │   ├── page.tsx        — Módulo de Compras (3 tabs con ?tab= deep-linking)
 │   │   │   ├── po/[id]/page.tsx — Detalle de PO sugerida (edición, aprobación, descarte)
-│   │   │   ├── mi-actividad/page.tsx ��� Mi actividad del comprador (Fase 4C, 2 tabs)
+│   │   │   ├── mi-actividad/page.tsx — Mi actividad del comprador (Fase 4C, 2 tabs)
+│   │   │   ├── mi-desempeno/page.tsx — Mi desempeño del comprador (Fase 5, KPIs + gráfica)
 │   │   │   └── mi-historial/page.tsx — Redirect a mi-actividad?tab=historial (legacy)
 │   │   ├── clientes/
 │   │   │   ├── page.tsx        — Lista de clientes
@@ -287,6 +307,12 @@ src/
 │       ├── RendimientoVendedores.tsx
 │       ├── AlertasMargen.tsx
 │       ├── OportunidadesVenta.tsx
+│       ├── OperacionCompras.tsx           — Sección de compras en Resumen Ejecutivo (Fase 5)
+│       ├── tablero-ventas/
+│       │   ├── TableroVentas.tsx          — Tablero operativo del rep (Fase 7+9, KPIs + acciones inline + cotizaciones + riesgo)
+│       │   ├── MiActividadRep.tsx         — Historial de oportunidades trabajadas (Fase 9, cards + tabla filtrable)
+│       │   ├── ModalDescartarOportunidad.tsx — Modal de descarte con notas opcionales
+│       │   └── ModalPosponerOportunidad.tsx — Modal de posposición con date picker y quick picks
 │       ├── tablero-compras/
 │       │   ├── HeaderTablero.tsx          — Saludo + conteos + timestamp + botón generar
 │       │   ├── KPIsCompradorCards.tsx     — 4 cards con datos reales (Fase 4A)
@@ -297,6 +323,8 @@ src/
 │       │   └── SeccionAlertasInventario.tsx — 3 tarjetas informativas
 │       ├── compras/mi-actividad/
 │       │   └── MiActividadTabs.tsx        — Tabs Actividad reciente + Historial completo (Fase 4C)
+│       ├── compras/mi-desempeno/
+│       │   └── MiDesempeno.tsx            — KPIs personales + gráfica Recharts 12 meses (Fase 5)
 │       ├── compras/mi-historial/
 │       │   ├── FiltrosHistorial.tsx       — Filtros de fecha y tipo ('use client')
 │       │   ├── ResumenHistorial.tsx       — Banner con resumen del periodo (polimórfico POs + overrides)
@@ -335,7 +363,7 @@ src/
 │   ├── auth/
 │   │   ├── roles.ts            — Tipos Rol, UsuarioActual + calcularRolPrimario + paginaAterrizajePorRol
 │   │   └── usuario-actual.ts   — getUsuarioActual() (server-only, usa supabase-server)
-│   ├── queries/                — 40 archivos, una query por archivo
+│   ├── queries/                — 47 archivos, una query por archivo
 │   │   ├── types.ts            — Tipos TS compartidos
 │   │   ├── kpis.ts, ingresos-mensuales.ts, top-skus.ts, deadstock.ts
 │   │   ├── clientes-en-riesgo.ts, rendimiento-vendedores.ts, alertas-margen.ts
@@ -356,6 +384,13 @@ src/
 │   │   ├── calculo-recomendado.ts  — Fase 4B (componentes de fórmula para popover)
 │   │   ├── pos-por-revisor.ts  — Fase 4C (POs asignadas a un comprador, todos los estados)
 │   │   ├── overrides-recientes.ts  — Fase 4C (últimos overrides de min/max del comprador)
+│   │   ├── kpis-comprador-personal.ts  — Fase 5 (KPIs del mes por comprador, con comparación mes anterior)
+│   │   ├── actividad-mensual-comprador.ts  — Fase 5 (serie 12 meses de actividad del comprador)
+│   │   ├── kpis-rep-mes.ts  — Fase 7 (KPIs del mes por vendedor, con comparación mes anterior)
+│   │   ├── oportunidades-trabajadas.ts  — Fase 9 (mutación: registrar acción del rep)
+│   │   ├── oportunidades-tablero-rep.ts  — Fase 9 (oportunidades filtradas para tablero del rep)
+│   │   ├── historial-oportunidades-rep.ts  — Fase 9 (historial de acciones del rep)
+│   │   ├── resumen-oportunidades-rep.ts  — Fase 9 (contadores para header del tablero)
 │   │   └── (todos con paginación defensiva .range() si pueden exceder 1000 filas)
 │   ├── textos/
 │   │   ├── pluralizar.ts       — Concordancia gramatical español
@@ -429,6 +464,50 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Deep-linking con `?tab=historial` para abrir directo en el tab de historial
 - RPCs: `get_pos_por_revisor` y `get_overrides_recientes`
 
+**Mi desempeño del comprador (Fase 5):**
+- Página `/dashboard/compras/mi-desempeno` con KPIs personales del mes (POs aprobadas/descartadas, valor, tiempo de revisión, overrides) con comparación vs mes anterior
+- Gráfica Recharts de barras apiladas (aprobaciones + descartes) con serie de 12 meses
+- Sidebar: entrada "Mi desempeño" para roles comprador y dueño
+- RPCs: `get_kpis_comprador_personal` y `get_actividad_mensual_comprador`
+
+**Operación de compras en Resumen Ejecutivo (Fase 5):**
+- Sección "Operación de compras" en el Resumen Ejecutivo del dueño con 4 métricas globales: valor POs aprobadas, pendientes de revisión (rojo si >0), SKUs desabasto crítico (rojo si >0), capital atrapado
+- Link "Ver módulo de compras →" al final de la sección
+- Usa la RPC existente `get_kpis_comprador_mes()`
+
+**Polish del módulo comprador (Fase 6):**
+- Sistema de toasts con sonner: `<Toaster>` en root layout, hook `useToastFromUrl` en `src/hooks/useToastFromUrl.ts` con guards contra doble disparo (Strict Mode + múltiples instancias)
+- Toasts conectados en todas las mutaciones: POs (tomada, guardada, aprobada, descartada), overrides (guardado, bulk), cotizaciones (creada, enviada, completada, cancelada, duplicada, eliminada, actualizada)
+- Componente `ToastListener` (`src/components/ui/ToastListener.tsx`) para páginas Server Component que reciben redirects con `?toast=`
+- Estados vacíos amigables en 8 componentes del módulo de compras (SeccionPOsSugeridas, SeccionDesabastoCritico, SeccionProximosDesabasto, TablaLineasPo, TabPronostico, TabPlaneacion, TabCompras, MiDesempeno)
+- Loading skeletons (`loading.tsx`) en 5 rutas: tablero-compras, compras, po/[id], mi-actividad, mi-desempeno
+- Verificación end-to-end completada: 14/15 checks pasaron (búsqueda global inconclusa por limitación del preview tool, no es bug)
+
+**Tablero de ventas del rep (Fase 7):**
+- Página `/dashboard/tablero-ventas` con header personalizado, 6 KPI cards (ingresos, margen, transacciones, clientes activos, cotizaciones, ticket promedio) con comparación vs mes anterior
+- Secciones: oportunidades de mayor valor (top 7 con botón "Crear cotización"), cotizaciones pendientes (borradores + enviadas), clientes en riesgo (con badges declive/inactivo)
+- Filtrado por vendedor en `get_clientes_en_riesgo(p_vendedor_id)`, `get_cotizaciones_lista(p_vendedor_id)`, y `get_lista_oportunidades(vendedorIdOverride)`
+- Sidebar dinámico: dueño ve 10 items (todo), comprador ve 5, rep ve 4. Tableros de ventas y compras visibles para dueño
+- Loading skeleton y estado vacío con mensajes amigables por sección
+- RPCs: `get_kpis_rep_mes`
+
+**Velocidad de cotización (Fase 8):**
+- Auto-asignación de vendedor logueado: WizardCotizacion recibe prop `vendedorIdLogueado` del Server Component, pre-selecciona el vendedor del usuario al abrir
+- Stock inline en búsqueda de productos: `get_productos_busqueda` retorna `stock_total`, el dropdown muestra "Stock: N" en gris o "Sin stock" en rojo
+- Duplicar línea: botón con ícono de copiar al lado del botón eliminar en cada fila del wizard, inserta copia debajo con nuevo key
+- Atajos de teclado: Enter en buscador de productos agrega el primer resultado, Escape cierra dropdown y limpia búsqueda
+
+**Tracking de acciones del rep (Fase 9):**
+- Tabla `oportunidades_trabajadas` con 3 tipos de acción: cotizada, descartada, pospuesta (con fecha de reaparición)
+- Botones inline Cotizar/Descartar/Posponer en cada fila de oportunidades del Tablero de ventas
+- Modales de descarte (notas opcionales) y posposición (date picker con quick picks: 3d/1sem/2sem/1mes)
+- Oportunidades trabajadas se ocultan del tablero. Pospuestas reaparecen en la fecha indicada con badge "Regresó"
+- Header del tablero con contadores dinámicos: pendientes, trabajadas hoy, pospuestas activas
+- Página `/dashboard/tablero-ventas/mi-actividad` con cards de resumen + tabla filtrable de acciones recientes
+- Sidebar: "Mi actividad" agregada para rol rep después de Oportunidades
+- Toasts: `oportunidad_descartada` y `oportunidad_pospuesta`
+- RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
+
 ## Convenciones de código
 
 - TypeScript estricto (`strict: true`)
@@ -438,6 +517,7 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Server Components por defecto. `'use client'` solo cuando hay hooks o interactividad
 - Cada query en su propio archivo en `src/lib/queries/`
 - Cada componente de dashboard en `src/components/dashboard/`
+- Toasts: después de toda mutación con `window.location.href`, agregar `?toast=CODIGO` al URL. El hook `useToastFromUrl` lo lee y muestra el toast. Los códigos disponibles están definidos en `src/hooks/useToastFromUrl.ts`. En páginas Server Component, usar `<ToastListener />` de `src/components/ui/ToastListener.tsx`
 
 ## Flujo de trabajo
 

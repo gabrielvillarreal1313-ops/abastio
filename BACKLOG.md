@@ -59,7 +59,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Aprobación de descuentos por supervisor.** Diferido a V2. Workflow de aprobación cuando un vendedor aplica descuento mayor al umbral configurado.
 - **Análisis de dispersión de precios por SKU.** Diferido a V1. Precursor de pricing dinámico: mostrar en detalle de producto que al cliente A se le vende a $X-15% y al cliente B a $X+8% vs el precio promedio. Calculable con datos actuales pero diferido por prioridad.
 - **Auto-guardado de cotizaciones en DB (no solo localStorage).** Diferido a V2. Actualmente el auto-guardado del wizard usa localStorage del navegador, lo que no sincroniza entre dispositivos. Para V2, guardar borradores automáticamente en Supabase para que un vendedor pueda empezar una cotización en desktop y continuarla en tablet.
-- **Aplicación del filtro `p_vendedor_id` en RPCs adicionales (productos, kpis, ingresos mensuales, etc.) cuando el usuario es rep puro.** Diferido a Fase 7. En Fase 1 solo se aplicó a `clientes-lista` y `oportunidades-lista` para validar el patrón.
+- ~~**Aplicación del filtro `p_vendedor_id` en RPCs adicionales (productos, kpis, ingresos mensuales, etc.) cuando el usuario es rep puro.**~~ DESCARTADO — Fase 7. Evaluado y decidido que no aporta valor: Productos debe mostrar todo el catálogo para habilitar cross-sell, Resumen Ejecutivo da contexto de empresa útil, y la visibilidad de otras páginas se controla vía sidebar (no vía filtrado de RPCs). El filtrado operativo relevante (oportunidades, clientes en riesgo, cotizaciones) ya está implementado.
 - **Persistencia server-side de la "vista activa" del selector multi-rol.** Actualmente vive en `localStorage`, lo que no sincroniza entre dispositivos. Diferido a V1+ cuando haya usuarios reales que usen multi-dispositivo.
 
 ## Alertas de margen
@@ -169,4 +169,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-15 (Fase 4C completada — Mi actividad del comprador)
+**Última actualización:** 2026-04-15 (Fase 9 completada — Tracking de acciones del rep)
