@@ -41,7 +41,7 @@ export function OportunidadesVenta({ resumen, topClientes }: Props) {
             <span>
               {conConteo(resumen.countRecompra, 'recompra tardía', 'recompras tardías')} ({formatMXNCorto(resumen.totalRecompra)})
             </span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-500">·</span>
             <span>
               {conConteo(resumen.countCrossSell, 'oportunidad de cross-sell', 'oportunidades de cross-sell')} ({formatMXNCorto(resumen.totalCrossSell)})
             </span>

@@ -42,7 +42,7 @@ function valorSort(row: OportunidadCliente, key: SortKey): number | string {
 function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -129,9 +129,9 @@ export function ListaOportunidades({ oportunidades }: Props) {
         <p className="text-3xl font-semibold text-blue-700 tracking-tight">{formatMXNCorto(totalValor)}</p>
         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
           <span>{conConteo(totalRecompras, 'recompra tardía', 'recompras tardías')}</span>
-          <span className="text-gray-300">·</span>
+          <span className="text-gray-500">·</span>
           <span>{conConteo(totalCrossSell, 'oportunidad de cross-sell', 'oportunidades de cross-sell')}</span>
-          <span className="text-gray-300">·</span>
+          <span className="text-gray-500">·</span>
           <span>{conConteo(filtrados.length, 'cliente', 'clientes')}</span>
         </div>
       </div>
@@ -202,14 +202,14 @@ export function ListaOportunidades({ oportunidades }: Props) {
                     {o.conteo_recompras > 0 ? (
                       <span className="text-amber-600 font-medium">{o.conteo_recompras}</span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">0</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-right whitespace-nowrap">
                     {o.conteo_cross_sell > 0 ? (
                       <span className="text-blue-600 font-medium">{o.conteo_cross_sell}</span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">0</span>
                     )}
                   </td>
                   <td className="px-5 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">

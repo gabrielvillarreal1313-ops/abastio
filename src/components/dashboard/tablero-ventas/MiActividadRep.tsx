@@ -110,7 +110,7 @@ export function MiActividadRep({ historial, resumen }: Props) {
       {/* ─── Tabla de historial ────────────────────────────────────── */}
       {historialMostrado.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-500">
             {filtro === 'todas'
               ? 'Aún no has trabajado oportunidades.'
               : `No hay acciones de tipo "${FILTROS.find((f) => f.key === filtro)?.label ?? filtro}".`}
@@ -173,7 +173,7 @@ export function MiActividadRep({ historial, resumen }: Props) {
           </div>
           {historialFiltrado.length > 50 && (
             <div className="px-4 py-3 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-400">Mostrando las 50 más recientes</p>
+              <p className="text-xs text-gray-500">Mostrando las 50 más recientes</p>
             </div>
           )}
         </div>

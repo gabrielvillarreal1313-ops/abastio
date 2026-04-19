@@ -68,7 +68,7 @@ function formatFecha(iso: string | null): string {
 function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -298,7 +298,7 @@ export function TabCompras({ data }: Props) {
               {itemsFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={10} className="px-8 py-12 text-center">
-                    <p className="text-sm text-gray-400">No hay sugerencias de compra activas. El inventario está en niveles adecuados.</p>
+                    <p className="text-sm text-gray-500">No hay sugerencias de compra activas. El inventario está en niveles adecuados.</p>
                   </td>
                 </tr>
               )}
@@ -317,7 +317,7 @@ export function TabCompras({ data }: Props) {
                     <td className="px-3 py-2">
                       <div className="font-medium text-gray-900 truncate max-w-[180px]" title={item.nombre_producto}>{item.nombre_producto}</div>
                       <div className="text-[10px] text-gray-500">Lead time: {item.lead_time_dias ?? 14} días</div>
-                      <div className="text-xs text-gray-400">{item.categoria}</div>
+                      <div className="text-xs text-gray-500">{item.categoria}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(item.bodega_nombre)}</td>
                     <td className="px-3 py-2 text-center">
@@ -330,7 +330,7 @@ export function TabCompras({ data }: Props) {
                       {item.cantidad_a_pedir != null && item.cantidad_a_pedir > 0 ? (
                         <span className="text-gray-900 font-semibold">{formatUnidades(item.cantidad_a_pedir)}</span>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-gray-500">0</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right text-gray-600 whitespace-nowrap">{formatUnidades(item.cantidad_actual)}</td>
@@ -338,7 +338,7 @@ export function TabCompras({ data }: Props) {
                       {item.fecha_requerida ? (
                         <span className="text-red-600 font-medium text-xs">{formatFecha(item.fecha_requerida)}</span>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-gray-500">—</span>
                       )}
                     </td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
@@ -351,7 +351,7 @@ export function TabCompras({ data }: Props) {
                           {item.meses_de_suministro > 0 ? item.meses_de_suministro.toFixed(1) : '0'}
                         </span>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-gray-500">0</span>
                       )}
                     </td>
                   </tr>

@@ -50,7 +50,7 @@ export default async function ProductoDetallePage({ params }: { params: { sku: s
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">{producto.nombre}</h1>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
-              <span className="font-mono text-sm text-gray-400">{producto.sku}</span>
+              <span className="font-mono text-sm text-gray-500">{producto.sku}</span>
               <span className="text-xs font-medium px-2 py-0.5 rounded text-gray-500 bg-gray-100">{producto.categoria}</span>
               {producto.marca && <span className="text-sm text-gray-500">{producto.marca}</span>}
               {producto.proveedor_principal && <span className="text-sm text-gray-500">· {producto.proveedor_principal}</span>}
@@ -102,7 +102,7 @@ export default async function ProductoDetallePage({ params }: { params: { sku: s
                 style={{ width: `${pctStockLeon}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
+            <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
               <span>Mín: {formatUnidades(producto.cantidad_minima)}</span>
               <span>Máx: {formatUnidades(producto.cantidad_maxima)}</span>
             </div>

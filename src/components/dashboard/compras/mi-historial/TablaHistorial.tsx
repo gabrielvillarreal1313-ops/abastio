@@ -58,14 +58,14 @@ function renderEntidad(accion: HistorialAccion) {
     );
   }
 
-  return <span className="text-gray-400 text-xs">—</span>;
+  return <span className="text-gray-500 text-xs">—</span>;
 }
 
 export function TablaHistorial({ acciones }: Props) {
   if (acciones.length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg px-8 py-12 text-center">
-        <p className="text-gray-400 text-sm">
+        <p className="text-gray-500 text-sm">
           Todavía no has registrado acciones en este periodo.
         </p>
       </div>

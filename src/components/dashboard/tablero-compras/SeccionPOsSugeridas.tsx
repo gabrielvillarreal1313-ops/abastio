@@ -33,7 +33,7 @@ export function SeccionPOsSugeridas({ pos, usuarioId }: Props) {
       {pos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
           <p className="text-gray-500 text-sm">No hay órdenes de compra sugeridas pendientes de revisión.</p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-gray-500 text-xs mt-1">
             Esto puede significar que tu inventario está saludable, o que aún no has generado órdenes sugeridas para esta sesión.
             Usa el botón &ldquo;Generar órdenes sugeridas&rdquo; en el header para crear nuevas.
           </p>

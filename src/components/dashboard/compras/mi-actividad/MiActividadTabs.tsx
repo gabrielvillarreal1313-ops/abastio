@@ -228,7 +228,7 @@ function SeccionDescartadas({ pos }: { pos: PoRevisorResumen[] }) {
                 {po.cantidad_items} ítems
               </p>
               {po.notas && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   Motivo: {po.notas}
                 </p>
               )}
@@ -268,7 +268,7 @@ function SeccionOverrides({ overrides }: { overrides: OverrideReciente[] }) {
                 {tiempoRelativo(o.creada_en)}
               </p>
               {o.notas && (
-                <p className="text-xs text-gray-400 mt-1">{o.notas}</p>
+                <p className="text-xs text-gray-500 mt-1">{o.notas}</p>
               )}
             </div>
           ))}

@@ -145,7 +145,7 @@ export function MiDesempeno({ kpis, actividadMensual }: Props) {
           </ResponsiveContainer>
         ) : (
           <div className="flex items-center justify-center py-16">
-            <p className="text-sm text-gray-400 text-center">
+            <p className="text-sm text-gray-500 text-center">
               Tu actividad aparecerá aquí conforme trabajes órdenes de compra
             </p>
           </div>

@@ -56,12 +56,12 @@ export function TopSKUs({ data }: Props) {
               <tbody className="divide-y divide-gray-50">
                 {porIngresos.map((sku, i) => (
                   <tr key={sku.sku} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-2.5 text-gray-400 font-medium">{i + 1}</td>
+                    <td className="px-5 py-2.5 text-gray-500 font-medium">{i + 1}</td>
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-gray-900 truncate max-w-[200px]" title={sku.nombre}>
                         <ProductoLink sku={sku.sku} nombre={sku.nombre} />
                       </div>
-                      <div className="text-xs text-gray-400">{sku.categoria}</div>
+                      <div className="text-xs text-gray-500">{sku.categoria}</div>
                     </td>
                     <td className="px-3 py-2.5 text-right font-medium text-gray-900 whitespace-nowrap">
                       {formatMXNTabla(sku.ingresos_totales)}
@@ -83,7 +83,7 @@ export function TopSKUs({ data }: Props) {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700">Por margen %</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Min. 20 uds. y $50K ingresos</p>
+            <p className="text-xs text-gray-500 mt-0.5">Min. 20 uds. y $50K ingresos</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -99,12 +99,12 @@ export function TopSKUs({ data }: Props) {
               <tbody className="divide-y divide-gray-50">
                 {porMargen.map((sku, i) => (
                   <tr key={sku.sku} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-2.5 text-gray-400 font-medium">{i + 1}</td>
+                    <td className="px-5 py-2.5 text-gray-500 font-medium">{i + 1}</td>
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-gray-900 truncate max-w-[200px]" title={sku.nombre}>
                         <ProductoLink sku={sku.sku} nombre={sku.nombre} />
                       </div>
-                      <div className="text-xs text-gray-400">{sku.categoria}</div>
+                      <div className="text-xs text-gray-500">{sku.categoria}</div>
                     </td>
                     <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">
                       <MargenBadge pct={sku.margen_pct} />

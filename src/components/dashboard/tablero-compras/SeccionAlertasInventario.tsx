@@ -53,8 +53,8 @@ export function SeccionAlertasInventario({ deadstock, alertasSobrestock, itemsSi
         {/* Deadstock — lo más crónico */}
         <TarjetaAlerta
           colorAccento="border-t-red-500"
-          colorValor={deadstock.length > 0 ? 'text-red-700' : 'text-gray-400'}
-          valor={deadstock.length > 0 ? formatMXNCorto(valorDeadstock) : '—'}
+          colorValor={deadstock.length > 0 ? 'text-red-700' : 'text-gray-500'}
+          valor={deadstock.length > 0 ? formatMXNCorto(valorDeadstock) : formatMXNCorto(0)}
           descripcion={deadstock.length > 0
             ? conConteo(deadstock.length, 'SKU sin movimiento en 90+ días', 'SKUs sin movimiento en 90+ días')
             : 'Sin alertas en este momento'
@@ -65,8 +65,8 @@ export function SeccionAlertasInventario({ deadstock, alertasSobrestock, itemsSi
         {/* Sobrestock */}
         <TarjetaAlerta
           colorAccento="border-t-amber-500"
-          colorValor={alertasSobrestock.length > 0 ? 'text-amber-700' : 'text-gray-400'}
-          valor={alertasSobrestock.length > 0 ? formatMXNCorto(valorSobrestock) : '—'}
+          colorValor={alertasSobrestock.length > 0 ? 'text-amber-700' : 'text-gray-500'}
+          valor={alertasSobrestock.length > 0 ? formatMXNCorto(valorSobrestock) : formatMXNCorto(0)}
           descripcion={alertasSobrestock.length > 0
             ? conConteo(alertasSobrestock.length, 'SKU con más de 6 meses de inventario', 'SKUs con más de 6 meses de inventario')
             : 'Sin alertas en este momento'
@@ -77,8 +77,8 @@ export function SeccionAlertasInventario({ deadstock, alertasSobrestock, itemsSi
         {/* Sin movimiento reciente — alerta temprana */}
         <TarjetaAlerta
           colorAccento="border-t-slate-400"
-          colorValor={itemsSinMovimiento.length > 0 ? 'text-slate-700' : 'text-gray-400'}
-          valor={itemsSinMovimiento.length > 0 ? formatMXNCorto(valorSinMovimiento) : '—'}
+          colorValor={itemsSinMovimiento.length > 0 ? 'text-slate-700' : 'text-gray-500'}
+          valor={itemsSinMovimiento.length > 0 ? formatMXNCorto(valorSinMovimiento) : formatMXNCorto(0)}
           descripcion={itemsSinMovimiento.length > 0
             ? conConteo(itemsSinMovimiento.length, 'SKU sin venta en los últimos 30 días', 'SKUs sin venta en los últimos 30 días')
             : 'Sin alertas en este momento'

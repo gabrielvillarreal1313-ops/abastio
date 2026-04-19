@@ -81,7 +81,7 @@ function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     // Flechas grises inactivas
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-1 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-1 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -118,13 +118,13 @@ function colorSparkline(serie: { cantidad: number }[]): string {
  */
 function CambioPct({ valor }: { valor: number }) {
   if (valor === 0) {
-    return <span className="text-gray-400">—</span>;
+    return <span className="text-gray-500">0%</span>;
   }
 
   const abs = Math.abs(valor);
   const texto = `${valor > 0 ? '+' : ''}${valor.toFixed(0)}%`;
 
-  let colorClass = 'text-gray-400';
+  let colorClass = 'text-gray-500';
   if (valor > 10) colorClass = 'text-emerald-600 font-medium';
   else if (valor < -10) colorClass = 'text-red-600 font-medium';
 
@@ -353,7 +353,7 @@ export function TabPronostico({ data }: Props) {
               {skusFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-8 py-12 text-center">
-                    <p className="text-sm text-gray-400">No se encontraron productos con los filtros aplicados.</p>
+                    <p className="text-sm text-gray-500">No se encontraron productos con los filtros aplicados.</p>
                   </td>
                 </tr>
               )}
@@ -373,7 +373,7 @@ export function TabPronostico({ data }: Props) {
                       <div className="font-medium text-gray-900 truncate max-w-[220px]" title={sku.nombre_producto}>
                         {sku.nombre_producto}
                       </div>
-                      <div className="text-xs text-gray-400">{sku.categoria}</div>
+                      <div className="text-xs text-gray-500">{sku.categoria}</div>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
                       {bodegaCorta(sku.bodega_nombre)}
@@ -398,7 +398,7 @@ export function TabPronostico({ data }: Props) {
                             </LineChart>
                           </ResponsiveContainer>
                         ) : (
-                          <span className="block text-center text-xs text-gray-400">—</span>
+                          <span className="block text-center text-xs text-gray-500">—</span>
                         )}
                       </div>
                     </td>
@@ -409,7 +409,7 @@ export function TabPronostico({ data }: Props) {
                       <span className="text-gray-900 font-medium">
                         {formatUnidades(pronosticoHorizonte)}
                       </span>
-                      <span className="text-xs text-gray-400 ml-1">uds</span>
+                      <span className="text-xs text-gray-500 ml-1">uds</span>
                     </td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap">
                       <CambioPct valor={diffPct} />

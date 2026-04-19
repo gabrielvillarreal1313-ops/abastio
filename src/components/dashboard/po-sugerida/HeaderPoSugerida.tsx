@@ -45,12 +45,12 @@ export function HeaderPoSugerida({ po, cantidadItemsActual, valorTotalActual }: 
           {badgeUrgencia.texto}
         </span>
       </div>
-      <p className="text-xs text-gray-400 mt-2">
+      <p className="text-xs text-gray-500 mt-2">
         Generada {tiempoRelativo(po.generada_en)} · Última actualización {tiempoRelativo(po.actualizada_en)}
       </p>
       <p className="text-sm text-gray-600 mt-1">
         {conConteo(cantidadItemsActual, 'item', 'items')} · {formatMXNCorto(valorTotalActual)}
-        {modificado && <span className="text-gray-400 ml-1">(modificado)</span>}
+        {modificado && <span className="text-gray-500 ml-1">(modificado)</span>}
       </p>
     </div>
   );

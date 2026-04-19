@@ -33,6 +33,10 @@ const TOAST_MESSAGES: Record<string, { tipo: 'success' | 'error' | 'info'; mensa
   cotizacion_actualizada: { tipo: 'success', mensaje: 'Cotización actualizada correctamente' },
   oportunidad_descartada: { tipo: 'success', mensaje: 'Oportunidad descartada' },
   oportunidad_pospuesta: { tipo: 'success', mensaje: 'Oportunidad pospuesta — reaparecerá en la fecha indicada' },
+  reporte_guardado: { tipo: 'success', mensaje: 'Reporte guardado correctamente' },
+  reporte_eliminado: { tipo: 'info', mensaje: 'Reporte eliminado' },
+  reporte_anclado: { tipo: 'success', mensaje: 'Reporte anclado a tu dashboard' },
+  reporte_desanclado: { tipo: 'info', mensaje: 'Reporte desanclado de tu dashboard' },
 };
 
 // Guard global para evitar que múltiples instancias del hook disparen el mismo toast

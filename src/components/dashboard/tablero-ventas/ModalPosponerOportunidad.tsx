@@ -34,6 +34,7 @@ const QUICK_PICKS = [
 
 export function ModalPosponerOportunidad({ clienteId, clienteNombre, vendedorId, abierto, onCerrar }: Props) {
   const [fecha, setFecha] = useState('');
+  const [quickPickSeleccionado, setQuickPickSeleccionado] = useState<number | null>(null);
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,16 +81,26 @@ export function ModalPosponerOportunidad({ clienteId, clienteNombre, vendedorId,
 
         {/* Quick picks */}
         <div className="flex flex-wrap gap-2 mb-3">
-          {QUICK_PICKS.map((pick) => (
-            <button
-              key={pick.label}
-              type="button"
-              onClick={() => setFecha(sumarDias(pick.dias))}
-              className="px-2 py-1 text-xs rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              {pick.label}
-            </button>
-          ))}
+          {QUICK_PICKS.map((pick) => {
+            const seleccionado = quickPickSeleccionado === pick.dias;
+            return (
+              <button
+                key={pick.label}
+                type="button"
+                onClick={() => {
+                  setFecha(sumarDias(pick.dias));
+                  setQuickPickSeleccionado(pick.dias);
+                }}
+                className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                  seleccionado
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                {pick.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Date picker */}
@@ -97,15 +108,19 @@ export function ModalPosponerOportunidad({ clienteId, clienteNombre, vendedorId,
           type="date"
           value={fecha}
           min={manana}
-          onChange={(e) => setFecha(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none mb-3"
+          onChange={(e) => {
+            setFecha(e.target.value);
+            // Si el usuario edita manualmente la fecha, limpiar la selección de quick pick
+            setQuickPickSeleccionado(null);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none mb-3"
         />
 
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
           placeholder="Nota de recordatorio (opcional)"
         />
 

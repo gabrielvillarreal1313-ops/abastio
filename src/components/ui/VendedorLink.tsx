@@ -33,7 +33,7 @@ export function VendedorLink({ vendedorId, nombre, className }: Props) {
           router.push(`/dashboard/vendedores/${vendedorId}`);
         }
       }}
-      className={`hover:underline cursor-pointer ${className ?? ''}`}
+      className={`text-[#92400e] hover:text-[#78350f] hover:underline cursor-pointer ${className ?? ''}`}
     >
       {nombre}
     </span>

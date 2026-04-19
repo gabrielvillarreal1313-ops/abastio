@@ -32,7 +32,7 @@ export default async function ComprasPage({
       <ToastListener />
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Compras</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
         <p className="text-sm text-gray-500 mt-1">
           Pronóstico de demanda, planeación de inventario y órdenes de compra
         </p>

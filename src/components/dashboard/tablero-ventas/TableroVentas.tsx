@@ -6,7 +6,7 @@
  * cotizaciones pendientes, y clientes en riesgo filtrados por el vendedor.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { KpisRepMes } from '@/lib/queries/kpis-rep-mes';
 import type { OportunidadTableroRep } from '@/lib/queries/oportunidades-tablero-rep';
@@ -14,6 +14,11 @@ import type { OportunidadCliente } from '@/lib/queries/oportunidades-lista';
 import type { ClienteEnRiesgo } from '@/lib/queries/clientes-en-riesgo';
 import type { CotizacionLista } from '@/lib/queries/cotizaciones-lista';
 import type { ResumenOportunidadesRep } from '@/lib/queries/resumen-oportunidades-rep';
+import { getRecomprasCliente } from '@/lib/queries/oportunidades-cliente';
+import {
+  getContextoOportunidadRecompra,
+  type ContextoOportunidad,
+} from '@/lib/queries/contexto-oportunidad';
 import { ClienteLink } from '@/components/ui/ClienteLink';
 import { ModalDescartarOportunidad } from './ModalDescartarOportunidad';
 import { ModalPosponerOportunidad } from './ModalPosponerOportunidad';
@@ -58,6 +63,17 @@ const BADGE_COTIZACION: Record<string, { texto: string; clase: string }> = {
   borrador: { texto: 'Borrador', clase: 'text-gray-700 bg-gray-100' },
   enviada: { texto: 'Enviada', clase: 'text-blue-700 bg-blue-50' },
 };
+
+const BADGE_URGENCIA: Record<'media' | 'alta' | 'critica', { texto: string; clase: string }> = {
+  media: { texto: 'Media', clase: 'text-yellow-800 bg-yellow-100' },
+  alta: { texto: 'Alta', clase: 'text-orange-800 bg-orange-100' },
+  critica: { texto: 'Crítica', clase: 'text-red-800 bg-red-100' },
+};
+
+interface EstadoContextoCliente {
+  cargando: boolean;
+  contexto: ContextoOportunidad | null;
+}
 
 // ─── Componente principal ───────────────────────────────────────────────────
 
@@ -111,7 +127,7 @@ export function TableroVentas({
           )}
         </p>
         {mesFormateado && (
-          <p className="text-xs text-gray-400 mt-1">Datos del mes: {mesFormateado}</p>
+          <p className="text-xs text-gray-500 mt-1">Datos del mes: {mesFormateado}</p>
         )}
       </div>
 
@@ -197,6 +213,46 @@ function SeccionOportunidades({
 }) {
   const [descartarModal, setDescartarModal] = useState<{ clienteId: number; nombre: string } | null>(null);
   const [posponerModal, setPosponerModal] = useState<{ clienteId: number; nombre: string } | null>(null);
+  const [contextos, setContextos] = useState<Record<number, EstadoContextoCliente>>({});
+
+  // Carga asíncrona de contexto enriquecido por cliente (no bloquea el render del
+  // Tablero). Para cada cliente, obtenemos el SKU top de recompras y luego su
+  // contexto. Si el cliente no tiene recompras en cache, simplemente no muestra
+  // contexto extra — degradación silenciosa.
+  const idsClientes = oportunidades.map((o) => o.cliente_id).join(',');
+  useEffect(() => {
+    let cancelado = false;
+    const ids = idsClientes ? idsClientes.split(',').map(Number) : [];
+
+    ids.forEach((clienteId) => {
+      if (contextos[clienteId]) return; // ya cargado/cargando
+      setContextos((prev) => ({ ...prev, [clienteId]: { cargando: true, contexto: null } }));
+
+      (async () => {
+        try {
+          const recompras = await getRecomprasCliente(clienteId);
+          if (cancelado) return;
+          if (recompras.length === 0) {
+            setContextos((prev) => ({ ...prev, [clienteId]: { cargando: false, contexto: null } }));
+            return;
+          }
+          // Primer SKU = mayor valor (la RPC ya ordena por valor descendente)
+          const skuTop = recompras[0].sku;
+          const contexto = await getContextoOportunidadRecompra(clienteId, skuTop);
+          if (cancelado) return;
+          setContextos((prev) => ({ ...prev, [clienteId]: { cargando: false, contexto } }));
+        } catch {
+          if (cancelado) return;
+          setContextos((prev) => ({ ...prev, [clienteId]: { cargando: false, contexto: null } }));
+        }
+      })();
+    });
+
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsClientes]);
 
   return (
     <div>
@@ -205,7 +261,7 @@ function SeccionOportunidades({
       </h2>
       {oportunidades.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-sm text-gray-400">No hay oportunidades detectadas para tus clientes.</p>
+          <p className="text-sm text-gray-500">No hay oportunidades detectadas para tus clientes.</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -221,17 +277,40 @@ function SeccionOportunidades({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {oportunidades.map((o) => (
-                  <tr key={o.cliente_id} className="hover:bg-gray-50 transition-colors">
+                {oportunidades.map((o) => {
+                  const estado = contextos[o.cliente_id];
+                  const contexto = estado?.contexto ?? null;
+                  const cargandoCtx = estado?.cargando ?? false;
+                  const badgeUrg = contexto ? BADGE_URGENCIA[contexto.nivelUrgencia] : null;
+                  return (
+                  <tr key={o.cliente_id} className="hover:bg-gray-50 transition-colors align-top">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <ClienteLink clienteId={o.cliente_id} nombre={o.nombre_cliente} />
+                        {badgeUrg && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeUrg.clase}`}>
+                            {badgeUrg.texto}
+                          </span>
+                        )}
                         {o.fue_pospuesta && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 whitespace-nowrap">
                             Regresó
                           </span>
                         )}
                       </div>
+                      {cargandoCtx && (
+                        <div className="mt-1 h-3 w-48 bg-gray-100 rounded animate-pulse" />
+                      )}
+                      {!cargandoCtx && contexto && (
+                        <>
+                          <p className="text-xs text-gray-600 mt-1 max-w-xl">{contexto.textoCadencia}</p>
+                          {contexto.textoEstacionalidad && (
+                            <p className="text-xs text-emerald-700 mt-0.5 max-w-xl">
+                              {contexto.textoEstacionalidad}
+                            </p>
+                          )}
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700">
                       {o.conteo_recompras + o.conteo_cross_sell}
@@ -274,7 +353,8 @@ function SeccionOportunidades({
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -321,7 +401,7 @@ function SeccionCotizaciones({ cotizaciones, total }: { cotizaciones: Cotizacion
       </h2>
       {cotizaciones.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-sm text-gray-400">No tienes cotizaciones pendientes.</p>
+          <p className="text-sm text-gray-500">No tienes cotizaciones pendientes.</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -381,7 +461,7 @@ function SeccionClientesRiesgo({ clientes, total }: { clientes: ClienteEnRiesgo[
       </h2>
       {clientes.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-sm text-gray-400">Ninguno de tus clientes está en riesgo. ¡Buen trabajo!</p>
+          <p className="text-sm text-gray-500">Ninguno de tus clientes está en riesgo. ¡Buen trabajo!</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">

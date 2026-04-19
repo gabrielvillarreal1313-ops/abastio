@@ -151,7 +151,7 @@ export function BusquedaGlobal() {
               <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Clientes
-                  <span className="ml-1.5 text-gray-400 font-normal normal-case">({resultados.conteo_clientes})</span>
+                  <span className="ml-1.5 text-gray-500 font-normal normal-case">({resultados.conteo_clientes})</span>
                 </h3>
               </div>
               <div className="divide-y divide-gray-50">
@@ -163,7 +163,7 @@ export function BusquedaGlobal() {
                   >
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{c.nombre}</div>
-                      {c.ciudad && <div className="text-xs text-gray-400">{c.ciudad}</div>}
+                      {c.ciudad && <div className="text-xs text-gray-500">{c.ciudad}</div>}
                     </div>
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 flex-shrink-0">
                       {BADGE_TIPO[c.tipo] ?? c.tipo}
@@ -188,7 +188,7 @@ export function BusquedaGlobal() {
               <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Productos
-                  <span className="ml-1.5 text-gray-400 font-normal normal-case">({resultados.conteo_productos})</span>
+                  <span className="ml-1.5 text-gray-500 font-normal normal-case">({resultados.conteo_productos})</span>
                 </h3>
               </div>
               <div className="divide-y divide-gray-50">
@@ -200,7 +200,7 @@ export function BusquedaGlobal() {
                   >
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{p.nombre}</div>
-                      <div className="text-xs text-gray-400 font-mono">{p.sku}</div>
+                      <div className="text-xs text-gray-500 font-mono">{p.sku}</div>
                     </div>
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0">
                       {p.categoria}
@@ -237,9 +237,9 @@ export function BusquedaGlobal() {
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900">
                           COT-{String(cot.numero_cotizacion).padStart(4, '0')}
-                          <span className="text-gray-400 font-normal ml-2">{cot.cliente_nombre}</span>
+                          <span className="text-gray-500 font-normal ml-2">{cot.cliente_nombre}</span>
                         </div>
-                        <div className="text-xs text-gray-400">{formatMXNTabla(cot.subtotal ?? 0)}</div>
+                        <div className="text-xs text-gray-500">{formatMXNTabla(cot.subtotal ?? 0)}</div>
                       </div>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${badge.clase}`}>
                         {badge.texto}

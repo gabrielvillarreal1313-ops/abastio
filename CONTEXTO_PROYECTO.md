@@ -26,16 +26,15 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 ## Estado actual
 
-- **Fase:** V0 (MVP con datos sintéticos) — Fase 9 del pivot completada, tracking de acciones del rep operativo
-- **Última actividad:** Fase 9 completa — acciones inline (Cotizar/Descartar/Posponer), oportunidades filtradas, Mi actividad del rep
-- **Siguiente:** Fase 10 del pivot (Métricas personales del rep). Roadmap restante: Fase 10 (módulo rep), Fase 11 (inteligencia de oportunidades), Fases 12-13 (Explorer + reportes), Fase 14 (polish final)
-- **Stack:** Next.js 14 + TypeScript + Tailwind + Supabase + Vercel + Recharts
+- **Fase:** **V0 completo — listo para demo**. Todas las fases (1-14) del pivot completadas
+- **Última actividad:** Fase 14 completa — identidad visual "Ámbar equilibrado", seed de inventario realista, loading skeletons en todas las rutas, audit de contraste y consistencia, toast unificado con sonner, fix de aterrizaje del dueño y sidebar de highlight único, verificación e2e de los 3 flujos
+- **Siguiente:** V0 completo. Siguiente milestone: preparar deck de demo e identificar primer cliente piloto para V1 (integración ERP real)
+- **Stack:** Next.js 14 + TypeScript + Tailwind + IBM Plex Sans + Supabase + Vercel + Recharts + sonner
 - **Repo:** GitHub privado `ferreteria-mvp`
 - **Deploy:** Vercel con auto-deploy desde main
-- **Rutas:** 20 páginas (login, resumen, tablero-ventas, mi-actividad-rep, tablero-compras, compras, PO detalle, mi-actividad, mi-desempeno, mi-historial redirect, clientes, productos, vendedores, oportunidades, cotizaciones)
-- **RPCs:** 70+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking comprador + rep, overrides)
-- **Tablas:** 14 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador + 1 oportunidades trabajadas)
-- **Tablas:** 13 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador)
+- **Rutas:** 23 páginas totales, **21 bajo `/dashboard/*` todas con `loading.tsx`** (login, resumen, explorer, reportes, tablero-ventas + mi-actividad-rep + mi-desempeno-rep, tablero-compras, compras/inventario + mi-actividad + mi-desempeno + PO detalle + mi-historial redirect, clientes + detalle, productos + detalle, vendedores + detalle, oportunidades + detalle + nueva)
+- **RPCs:** 80+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking comprador + rep, overrides, cadencia/estacionalidad/contexto de oportunidades, Explorer multidimensional, CRUD de reportes guardados)
+- **Tablas:** 16 (6 seed + 2 cotizaciones + 2 cache oportunidades + 2 identidad + 1 POs sugeridas + 1 acciones comprador + 1 oportunidades trabajadas + 1 reportes guardados)
 
 **Lo que está construido:**
 - Generador de datos sintéticos completo (scripts/seed/) — 113K transacciones de una ferretería mayorista ficticia "Ferretera del Bajío" con 750 SKUs, 110 clientes, 7 vendedores, 18 meses de historia
@@ -122,6 +121,50 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
   - Header con contadores: pendientes, trabajadas hoy, pospuestas activas
   - Página `/dashboard/tablero-ventas/mi-actividad` con 4 cards de resumen + tabla filtrable de acciones
   - RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
+- Métricas del rep y reorganización (Fase 10 del pivot):
+  - Página `/dashboard/tablero-ventas/mi-desempeno` con 8 KPI cards, gráfica de ingresos 12 meses (reutiliza GraficaIngresosMensuales), top clientes y top SKUs lado a lado
+  - Sidebar reorganizado con secciones colapsables: Resumen (link directo), grupo Compras, grupo Ventas. Componente `SidebarNav.tsx` client con `usePathname`
+  - Página "Compras" renombrada visualmente a "Inventario" en sidebar y título (URL `/dashboard/compras` sin cambio)
+  - Hito: módulo del rep completo. Los dos roles operativos (comprador y rep) están terminados y pulidos
+- Inteligencia de oportunidades (Fase 11 del pivot):
+  - Análisis de cadencia por par cliente-SKU: intervalo promedio, predicción de próxima compra (`ultima_compra + intervalo_promedio`), clasificación de regularidad (muy_regular/regular/irregular) por desviación
+  - Detección de estacionalidad simple sin ML: 12 meses comparando año actual vs año anterior. `tiene_patron = true` cuando hay compras en ambos años en el mismo mes
+  - Contexto enriquecido en oportunidades de recompra: texto legible + badges de urgencia (Media/Alta/Crítica por ratio `dias_retraso / intervalo_promedio`)
+  - Tab Oportunidades del detalle de cliente: filas expandibles con 3 sub-tabs internos (Cadencia/Uso/Estacional). Las 4 RPCs de contexto se cargan bajo demanda al expandir y se cachean en estado local
+  - Tablero de ventas del rep: contexto asíncrono (texto de cadencia + badge de urgencia + texto de estacionalidad) bajo cada oportunidad, sin bloquear el render del tablero. Skeleton `animate-pulse` mientras carga, degradación silenciosa si el cliente no tiene recompras
+  - Wizard de cotizaciones: badges de urgencia y subtexto accionable ("Compra cada ~Nd · Atrasado Md") en el panel de recompras, sin llamadas extra a RPCs
+  - RPCs nuevas: `get_cadencia_cliente_sku`, `get_resumen_cadencia_cliente_sku`, `get_estacionalidad_cliente_sku`, `get_contexto_oportunidad_recompra`
+- Explorer multidimensional (Fase 12 del pivot):
+  - Página `/dashboard/explorer` visible solo para rol `dueno` con tabla pivotable por 7 dimensiones: Bodegas, Vendedores, Clientes, Categorías, Productos, Meses, Ciudades
+  - Métricas por fila: Ventas YTD vs LYTD (LYTD cortado al mismo día del año anterior para comparación justa), deltas absolutos y porcentuales con color condicional, Gross margin YTD/LYTD y su delta, sparkline mensual con Recharts
+  - Filtros cruzados con chips removibles: el botón "Aplicar" de cada fila agrega el valor como filtro y salta automáticamente a la siguiente dimensión natural (Bodegas → Vendedores → Clientes → Productos). Chips muestran "Categoría: Plomería ×" con botón individual de remoción + "Limpiar filtros"
+  - Sorting client-side por cualquier columna, buscador client-side sobre label/extra, contador de resultados
+  - Navegación a detalle: ClienteLink/ProductoLink/VendedorLink en las dimensiones con página de detalle. Bodegas/Categorías/Meses/Ciudades quedan como texto plano
+  - RPC única `get_explorer(p_dimension TEXT, p_filtros JSONB DEFAULT '{}')` parametrizada con filtros cruzados vía JSONB. LIMIT 500 como safety net
+  - Sidebar: nueva entrada "Explorer" al mismo nivel que "Resumen" (link directo), solo visible para dueño, posición entre Resumen y el grupo Compras
+- Reportes guardados y dashboard personalizable (Fase 13 del pivot):
+  - Tabla `reportes_guardados` con CRUD completo vía 6 RPCs (`guardar_reporte`, `get_reportes_usuario`, `get_reportes_anclados`, `toggle_ancla_reporte`, `eliminar_reporte`, `actualizar_reporte`). `configuracion` JSONB captura `{dimension, filtros, sort_column, sort_direction}` del Explorer. Índice parcial para leer anclados rápidamente
+  - Botón "Guardar como reporte" en la barra de controles del Explorer abre modal con nombre, descripción opcional, checkbox "Anclar a mi dashboard" y preview de la dimensión + filtros actuales
+  - Página `/dashboard/reportes` con lista de reportes del usuario: columnas Nombre (link al Explorer con `?reporte=<id>`), Descripción, Dimensión, badge de conteo de filtros, pin clickeable para toggle de ancla, fecha (tiempo relativo si <7 días), botón de eliminar con modal de confirmación
+  - Carga de reporte guardado en Explorer: lee `?reporte=<id>` vía useSearchParams, inicializa estado (dimensión, filtros, sort) desde la configuración y re-fetch. Banner "Viendo reporte: {nombre}" con botón × para cerrar
+  - Reportes anclados en Resumen Ejecutivo: sección compacta por cada reporte anclado (máximo 5) con tabla preview de 5-7 filas y link "Abrir en Explorer →". Nombres clickeables para dimensiones con detalle. Posición entre "Operación de compras" y "Rendimiento por vendedor". Si no hay anclados, la sección no existe
+  - 3 reportes predefinidos seeded para el dueño Roberto Gómez: Top Territorios (bodegas), Top Clientes, Top Productos — todos anclados por default
+  - Sidebar: nueva entrada "Reportes" al mismo nivel que "Explorer", solo visible para dueño
+  - Toasts: `reporte_guardado`, `reporte_eliminado`, `reporte_anclado`, `reporte_desanclado`
+  - Hito: el dueño puede capturar vistas del Explorer como reportes, anclar las más usadas al dashboard y verlas actualizadas cada vez que abre el Resumen Ejecutivo sin re-configurar nada
+- Polish final y demo prep (Fase 14 del pivot — cierra V0):
+  - Identidad visual "Ámbar equilibrado" aplicada en toda la app: tipografía IBM Plex Sans (vía next/font/google + `fontFamily.sans` en Tailwind), sidebar con gradiente oscuro `from-[#0f1419] to-[#141c24]` y acento ámbar `#fbbf24`/`#f59e0b` en items activos, links de entidades clickeables en tono cálido oscuro `text-[#92400e]`, botones primarios `bg-slate-900`, KPICards con labels uppercase tracking-wide + valores `font-bold` + deltas con paleta verde/rojo consistente. Tokens `brand.*` y `sidebar.*` expuestos en `tailwind.config.ts`
+  - Seed de inventario regenerado con distribución realista: script `scripts/seed/regenerar-inventario.ts` que actualiza `cantidad_actual` conservando `cantidad_minima/maxima` existentes (respeta overrides del comprador). Distribución final resultante: 70.6% saludable, 15.8% sobrestock, 8.7% próximo a desabasto, 4.9% desabasto crítico. POs regeneradas: 2 POs con 204 items por $13.6M (antes: 1,500+ items, inmanejable)
+  - Loading skeletons en las 21 rutas de `/dashboard/*`: 10 `loading.tsx` nuevos creados en Fase 14-3 + los 10 preexistentes (explorer, reportes, tablero-compras, compras/*, tablero-ventas/*) — solo `compras/mi-historial` queda sin loading porque es un redirect
+  - Audit de contraste y valores numéricos completado: 8 migraciones `text-gray-400 → text-gray-500` en texto informativo (regla 30), 2 fixes de `— → 0` en contadores numéricos (regla 29), unificación del delta null de gross margin en Resumen Ejecutivo con el badge "Nuevo" (mismo patrón que Explorer)
+  - Toast unificado con sonner en todo el codebase: eliminado el toast custom interno del wizard de cotizaciones (div fijo `bg-slate-900`), migrado a `sonner.toast.error()`. Todas las mutaciones del producto usan el patrón oficial `?toast=CODIGO` + `useToastFromUrl` para redirects, y `sonner` directo para errores inline
+  - Fix de bugs críticos de verificación e2e:
+    - Aterrizaje del dueño post-login: `FormularioLogin` leía `vista_activa_*` del localStorage y lo usaba para redirigir, dejando al dueño "atrapado" en `/dashboard/tablero-compras` si alguna vez había probado la vista de comprador. Eliminada esa lógica — el login honra la jerarquía `dueno > comprador > rep` siempre
+    - Sidebar con dos items resaltados simultáneamente: cambiada la lógica `pathname === href || pathname.startsWith(href + '/')` por una estrategia "más específico gana" que calcula un `hrefActivo` tomando el href más largo que coincide con el pathname. Garantiza exactamente un item resaltado a la vez
+    - Modal de posponer oportunidad: quick picks ahora muestran estado visual del seleccionado (`bg-slate-900 text-white`), limpian su highlight cuando el usuario edita la fecha manualmente
+    - Inputs de todos los modales con `text-slate-900 placeholder:text-gray-400` consistente para legibilidad
+  - Verificación end-to-end de los 3 flujos (dueño / comprador / rep): aterrizaje, navegación, mutaciones críticas, toasts, estados vacíos, loading skeletons. Sin errores en consola, sin warnings de build
+  - Hito: **V0 cerrado, producto listo para demos a inversionistas y primeros clientes**
 
 ## Decisiones tomadas
 
@@ -260,87 +303,54 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 - Página Mi actividad del rep con cards + tabla filtrable
 - RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
 
-**Siguiente: Fase 10 — Métricas personales del rep (semana 15, ~10 horas)**
+**Fase 10 — Métricas del rep y reorganización (completada):**
+- Página `/dashboard/tablero-ventas/mi-desempeno` con 8 KPI cards, gráfica 12 meses, top clientes/SKUs
+- Sidebar reorganizado con secciones colapsables (Resumen, Compras, Ventas). Componente `SidebarNav.tsx`
+- Renombre visual de "Compras" a "Inventario" (URL sin cambio)
+- Hito: módulo del rep completo. Los dos roles operativos (comprador y rep) están terminados y pulidos. Siguiente: inteligencia de oportunidades y Explorer.
 
-Objetivo: Análoga a Mi desempeño del comprador.
+**Fase 11 — Inteligencia de oportunidades (completada):**
+- 4 RPCs nuevas: `get_cadencia_cliente_sku`, `get_resumen_cadencia_cliente_sku` (con predicción de próxima compra y regularidad), `get_estacionalidad_cliente_sku` (12 meses año actual vs año anterior), `get_contexto_oportunidad_recompra` (texto legible + nivel de urgencia)
+- Tab Oportunidades del detalle de cliente con filas expandibles y 3 sub-tabs internos (Cadencia/Uso/Estacional). Las RPCs de contexto se cargan bajo demanda al expandir y se cachean en estado local
+- Tablero de ventas: contexto enriquecido (texto + badge de urgencia) bajo cada oportunidad, carga asíncrona sin bloquear el render
+- Wizard de cotizaciones: badges de urgencia y texto accionable en el panel de recompras, sin llamadas extra a RPCs
+- Archivos: `cadencia-cliente-sku.ts`, `estacionalidad-cliente-sku.ts`, `contexto-oportunidad.ts`, `FilaRecompraExpandible.tsx`
+- Hito: cada recomendación de venta ahora tiene contexto profundo que explica por qué se sugiere y cuándo se espera la próxima compra
 
-Trabajo:
+**Fase 12 — Explorer: vista multidimensional de datos (completada):**
+- Página `/dashboard/explorer` con tabla multidimensional, accesible solo para rol `dueno`
+- 7 dimensiones pivotables en tabs: Bodegas, Vendedores, Clientes, Categorías, Productos, Meses, Ciudades
+- Métricas por fila: Ventas YTD vs LYTD con deltas absolutos y porcentuales, gross margin YTD vs LYTD con delta, sparkline mensual con Recharts
+- LYTD cortado al mismo día del año anterior (`MAX(fecha) - INTERVAL '1 year'`) para comparación justa sobre ventanas equivalentes
+- Filtros cruzados con chips removibles: botón "Aplicar" por fila agrega el valor como filtro y salta a la siguiente dimensión natural. Chips individuales con × + "Limpiar filtros" global
+- Sorting client-side por columna (default Ventas YTD desc), buscador client-side sobre label/extra, contador de resultados
+- Navegación a detalle: ClienteLink/ProductoLink/VendedorLink para las dimensiones con página propia
+- Overlay semi-transparente con spinner durante re-fetch para no hacer flash de la tabla
+- Sidebar: entrada "Explorer" al mismo nivel que "Resumen" (link directo, sin grupo), visible solo para dueño
+- RPC única `get_explorer(p_dimension, p_filtros)` parametrizada con JSONB para filtros cruzados. LIMIT 500 como safety net
+- Hito: el dueño ya puede responder preguntas ad-hoc ("¿qué productos perdieron más margen en la zona de Querétaro?") sin depender de vistas preconstruidas
 
-- Página `/dashboard/mi-desempeno` (visible solo para rol rep)
-- KPIs personales del mes
-- Gráfica histórica de los últimos 12 meses
-- Top clientes y top SKUs del rep
+**Fase 13 — Reportes guardados y dashboard personalizable (completada):**
+- Tabla `reportes_guardados` con 6 RPCs de CRUD + anclado. `configuracion` JSONB captura dimensión, filtros y sort del Explorer
+- Botón "Guardar como reporte" en Explorer con modal (nombre, descripción, checkbox de anclar) y preview de lo que se guarda
+- Página `/dashboard/reportes` con lista de reportes, toggle de ancla, eliminación con confirmación, click en nombre abre Explorer con configuración pre-cargada
+- Reportes anclados visibles en Resumen Ejecutivo como secciones compactas (5-7 filas preview + link "Abrir en Explorer →")
+- 3 reportes seeded para el dueño: Top Territorios, Top Clientes, Top Productos — todos anclados por default
+- Sidebar: entrada "Reportes" al mismo nivel que "Explorer"
+- Toasts: `reporte_guardado`, `reporte_eliminado`, `reporte_anclado`, `reporte_desanclado`
+- Hito: el dueño captura vistas del Explorer como reportes, ancla las más usadas, y el Resumen Ejecutivo se las muestra actualizadas sin que tenga que re-configurar nada
 
-Criterio de éxito:
-Como rep, veo mi progreso del mes y me motiva a usar la herramienta.
-
-**Fase 11 — Inteligencia de oportunidades (semana 17-18, ~20 horas)**
-
-Objetivo: Que cada recomendación de venta tenga contexto profundo que genere confianza en el vendedor. Pasar de "quizás le interese" a "va a necesitar esto la próxima semana".
-
-Trabajo:
-
-- Análisis de cadencia por par cliente-SKU: calcular intervalo promedio de compra, detectar si el cliente está atrasado, y predecir fecha estimada de próxima compra
-- Enriquecer las oportunidades de recompra con contexto: "Este cliente compra este producto cada ~45 días. Última compra hace 52 días — probablemente necesita reorden pronto"
-- Detección de estacionalidad simple (sin ML): comparar compras del mismo mes del año anterior para cada par cliente-SKU. Etiquetar como "Este cliente suele comprar este producto en esta época del año" cuando hay patrón
-- Tabs de contexto por recomendación en el panel de oportunidades del cliente: Cadencia (intervalo, historial de compras), Uso (volúmenes, tendencia), Estacional (comparación mes a mes)
-- Integrar el contexto enriquecido en el wizard de cotizaciones (panel de recomendaciones) y en Mi día del rep (Fase 7)
-
-Criterio de éxito:
-Como rep, abro una oportunidad de recompra y veo exactamente por qué el sistema la está sugiriendo, con datos concretos que puedo usar en la llamada al cliente.
-
-**Fase 12 — Explorer: vista multidimensional de datos (semana 19-20, ~20 horas)**
-
-Objetivo: Que cualquier usuario pueda explorar los datos transaccionales libremente, pivotando por cualquier dimensión, sin depender de vistas preconstruidas.
-
-Trabajo:
-
-- Crear página `/dashboard/explorer` con tabla multidimensional
-- Dimensiones pivotables: Bodegas, Vendedores, Clientes, Destinos (Ship To), Categorías de producto, Productos, Meses
-- Métricas por fila: Ventas YTD, Ventas año anterior (LYTD), Delta ventas ($, %), Margen bruto YTD, Margen LYTD, Delta margen ($, %), sparkline de tendencia
-- Filtros cruzados: seleccionar una fila aplica como filtro a la siguiente dimensión (ej: click en un vendedor filtra para ver solo sus clientes)
-- Botón "Apply" por fila que navega al detalle de la entidad
-- Sorting por cualquier columna
-- Buscador dentro de cada vista
-- RPCs parametrizadas que acepten la dimensión como argumento y retornen las métricas agregadas con comparación YTD vs LYTD
-
-Criterio de éxito:
-Como dueño, puedo responder "¿cuáles productos perdieron más margen este año vs el anterior en la zona de Querétaro?" en menos de 30 segundos.
-
-**Fase 13 — Reportes guardados y dashboard personalizable (semana 21, ~12 horas)**
-
-Objetivo: Que cada usuario pueda guardar las vistas del Explorer que más usa y acceder a ellas rápidamente.
-
-Trabajo:
-
-- Botón "Guardar como reporte" en el Explorer que captura: dimensión activa, filtros aplicados, ordenamiento, y nombre del reporte
-- Tabla `reportes_guardados` con `usuario_id`, `nombre`, `configuracion` (JSONB), timestamps
-- Página `/dashboard/reportes` que lista los reportes guardados del usuario con fecha de creación y acciones (abrir, eliminar)
-- Capacidad de anclar reportes al dashboard principal del usuario (sección "Reportes anclados" en el Resumen Ejecutivo o en el tablero de aterrizaje según el rol)
-- Reportes predefinidos por tipo de usuario: "Top Territories", "Top Customers", "Top Items" (los 3 que Recurrency muestra como defaults)
-
-Criterio de éxito:
-Como dueño, guardo "Clientes con margen en declive" como reporte, lo anclo a mi dashboard, y cada vez que abro el producto lo veo actualizado sin configurar nada.
-
-**Fase 14 — Polish final y demo prep (semana 22, ~10 horas)**
-
-Objetivo: Que todo el producto esté pulido para mostrarse a inversionistas y primeros clientes.
-
-Trabajo:
-
-- Identidad visual: definir color de acento, jerarquía tipográfica, personalidad del sidebar y cards
-- Estados vacíos en todas las páginas que falten (explorer, reportes, tablero del rep)
-- Loading states consistentes en páginas nuevas
-- Toasts en todas las mutaciones nuevas
-- Screenshots de los tres flujos (rep, comprador, dueño) para deck
-- Documentación completa en CONTEXTO_PROYECTO.md, BACKLOG.md, CLAUDE.md
-- Verificar los flujos end-to-end de los tres roles
-- Regenerar el seed con distribución realista de inventario (actualmente ~97% en stock cero)
-
-Criterio de éxito:
-Puedes mostrar el producto completo a un inversionista o cliente potencial sin pedir disculpas por nada.
-
-**Crítico antes del demo (fuera del cronograma de fases):** Regenerar el seed con distribución realista de inventario. Hoy ~97% del inventario está en stock cero. Distribución target: ~70% saludable, ~15% sobrestock, ~10% próximo a desabasto, ~5% desabasto crítico.
+**Fase 14 — Polish final y demo prep (completada — cierra V0):**
+- 14-1: Identidad visual "Ámbar equilibrado" aplicada en toda la app: IBM Plex Sans, sidebar oscuro con acento ámbar, links cálidos, botones primarios slate, KPICards con tipografía y deltas estandarizados. Tokens `brand.*` y `sidebar.*` expuestos en `tailwind.config.ts`
+- 14-2: Seed de inventario regenerado con distribución realista (70/15/10/5) vía script `scripts/seed/regenerar-inventario.ts` que conserva los overrides del comprador. POs sugeridas regeneradas en consecuencia (2 POs con 204 items por $13.6M)
+- 14-3: Loading skeletons en las 21 rutas de `/dashboard/*`, audit de contraste (`text-gray-400 → text-gray-500` en texto informativo), fix de 2 violaciones de regla 29 (`— → 0` en contadores), toast unificado con sonner (eliminado div custom del wizard), fix warning de useCallback en ModalMinMax
+- 14-4: Fixes de bugs críticos encontrados en verificación e2e:
+  - Aterrizaje del dueño: `FormularioLogin` dejaba de honrar `paginaAterrizajePorRol` si había `vista_activa_*` en localStorage
+  - Sidebar: dos items resaltados simultáneamente cuando había hrefs anidados (ej: "Inventario" y "Mi actividad"). Nueva estrategia "más específico gana"
+  - Modal de posponer: quick picks sin estado visual de seleccionado, input de fecha gris claro
+  - Inputs de modales: migración completa a `text-slate-900 placeholder:text-gray-400` para legibilidad
+- Verificación end-to-end de los 3 flujos completada (dueño / comprador / rep), build limpio sin warnings, sin errores en consola
+- Hito: **V0 cerrado. Producto listo para demos a inversionistas y primeros clientes.**
 
 ## Paridad con Recurrency — Módulo Compras
 
@@ -382,9 +392,9 @@ Puedes mostrar el producto completo a un inversionista o cliente potencial sin p
 | Feature de Recurrency | Estado | Notas |
 |------------------------|--------|-------|
 | Opportunities: lista priorizada | Implementado | Recompras + cross-sell con cache pre-computado |
-| Cadencia por par cliente-SKU | Backlog Fase 11 | Intervalo promedio, predicción de próxima compra |
-| Estacionalidad por par cliente-SKU | Backlog Fase 11 | Comparación mes a mes sin ML |
-| Tabs Cadence/Usage/Seasonal | Backlog Fase 11 | Contexto profundo por recomendación |
+| Cadencia por par cliente-SKU | Implementado | Intervalo promedio, predicción de próxima compra, clasificación de regularidad (Fase 11) |
+| Estacionalidad por par cliente-SKU | Implementado | Comparación mes a mes sin ML, 12 meses año actual vs anterior (Fase 11) |
+| Tabs Cadence/Usage/Seasonal | Implementado | Filas expandibles con 3 sub-tabs en detalle de cliente, carga bajo demanda (Fase 11) |
 | Crear cotización desde oportunidad | Implementado | Wizard 3 pasos con recomendaciones |
 | Draft Quotes | Implementado | Borradores con auto-guardado |
 | Quote → Order workflow | Backlog V1 | Requiere integración ERP |
@@ -394,13 +404,13 @@ Puedes mostrar el producto completo a un inversionista o cliente potencial sin p
 
 | Feature de Recurrency | Estado | Notas |
 |------------------------|--------|-------|
-| Explorer multidimensional | Backlog Fase 12 | Pivot por 7 dimensiones |
-| YTD vs LYTD con deltas | Backlog Fase 12 | Ventas y margen |
-| Sparklines por fila | Backlog Fase 12 | Tendencia inline |
-| Filtros cruzados | Backlog Fase 12 | Click en fila filtra siguiente dimensión |
-| Guardar como reporte | Backlog Fase 13 | Nombre + configuración JSONB |
-| Anclar al dashboard | Backlog Fase 13 | Reportes favoritos en vista principal |
-| Reportes predefinidos por rol | Backlog Fase 13 | Top Territories/Customers/Items |
+| Explorer multidimensional | Implementado | Pivot por 7 dimensiones (Bodegas/Vendedores/Clientes/Categorías/Productos/Meses/Ciudades) con RPC parametrizada única (Fase 12) |
+| YTD vs LYTD con deltas | Implementado | Ventas y margen con deltas absolutos + porcentuales, LYTD cortado al mismo día del año anterior (Fase 12) |
+| Sparklines por fila | Implementado | Recharts `<LineChart>` miniatura 120×30 alimentada por JSONB `sparkline_data` (Fase 12) |
+| Filtros cruzados | Implementado | Chips removibles + botón "Aplicar" que agrega filtro y salta a la siguiente dimensión natural (Fase 12) |
+| Guardar como reporte | Implementado | Modal en Explorer captura dimensión + filtros + sort como JSONB; CRUD completo vía 6 RPCs (Fase 13) |
+| Anclar al dashboard | Implementado | Toggle de ancla en lista de reportes; secciones compactas en Resumen Ejecutivo con tabla preview + link al Explorer (Fase 13) |
+| Reportes predefinidos por rol | Implementado | Seed de Top Territorios/Top Clientes/Top Productos anclados para el dueño (Fase 13) |
 | Búsqueda global (keyword) | Implementado | Ctrl+K en header |
 
 ---
@@ -413,4 +423,4 @@ Puedes mostrar el producto completo a un inversionista o cliente potencial sin p
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-15 (Fase 9 completada — Tracking de acciones del rep)
+**Última actualización:** 2026-04-19 (Fase 14 completada — V0 cerrado. Identidad visual "Ámbar equilibrado", seed de inventario realista, loading skeletons en las 21 rutas, audit de contraste y consistencia, toast unificado con sonner, fixes de aterrizaje y sidebar, verificación e2e de los 3 flujos. Producto listo para demo.)

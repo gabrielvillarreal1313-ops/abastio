@@ -73,7 +73,7 @@ function itemKey(row: PlaneacionSKU): string {
 function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -86,9 +86,9 @@ function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
 }
 
 function DeltaPct({ valor }: { valor: number }) {
-  if (valor === 0) return <span className="text-gray-400">—</span>;
+  if (valor === 0) return <span className="text-gray-500">0%</span>;
   const texto = `${valor > 0 ? '+' : ''}${valor.toFixed(0)}%`;
-  let color = 'text-gray-400';
+  let color = 'text-gray-500';
   if (valor > 20) color = 'text-red-600 font-medium';
   else if (valor < -20) color = 'text-amber-600 font-medium';
   return <span className={color}>{texto}</span>;
@@ -348,7 +348,7 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
               {skusFiltrados.length === 0 && (
                 <tr>
                   <td colSpan={14} className="px-8 py-12 text-center">
-                    <p className="text-sm text-gray-400">No se encontraron productos con los filtros aplicados.</p>
+                    <p className="text-sm text-gray-500">No se encontraron productos con los filtros aplicados.</p>
                   </td>
                 </tr>
               )}
@@ -368,7 +368,7 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
                     <td className="px-3 py-2 font-mono text-xs text-gray-500">{row.sku}</td>
                     <td className="px-3 py-2">
                       <div className="font-medium text-gray-900 truncate max-w-[180px]" title={row.nombre_producto}>{row.nombre_producto}</div>
-                      <div className="text-xs text-gray-400">{row.categoria}</div>
+                      <div className="text-xs text-gray-500">{row.categoria}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{bodegaCorta(row.bodega_nombre)}</td>
                     <td className="px-3 py-2 text-center">
@@ -424,7 +424,6 @@ export function TabPlaneacion({ data, usuarioId }: Props) {
           usuarioId={usuarioId}
           minActual={overrideRow.min_actual}
           maxActual={overrideRow.max_actual}
-          minRecomendado={overrideRow.min_recomendado}
           abierto={true}
           onCerrar={() => setOverrideRow(null)}
         />

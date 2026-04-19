@@ -24,7 +24,6 @@ interface Props {
   usuarioId: string;
   minActual: number;
   maxActual: number;
-  minRecomendado: number;
   abierto: boolean;
   onCerrar: () => void;
 }
@@ -42,7 +41,6 @@ export function ModalMinMax({
   usuarioId,
   minActual,
   maxActual,
-  minRecomendado,
   abierto,
   onCerrar,
 }: Props) {
@@ -114,7 +112,7 @@ export function ModalMinMax({
     } finally {
       setCargando(false);
     }
-  }, [abierto, productoId, bodegaId, usuarioId, minActual, maxActual, minRecomendado]);
+  }, [abierto, productoId, bodegaId, usuarioId, minActual, maxActual]);
 
   useEffect(() => {
     cargarDatos();
@@ -315,7 +313,7 @@ export function ModalMinMax({
                       Mín: {formatUnidades(calculo.minimoCalculado)} · Máx: {formatUnidades(calculo.maximoCalculado)}
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1">Sin demanda registrada para calcular</p>
+                    <p className="text-xs text-gray-500 mt-1">Sin demanda registrada para calcular</p>
                   )}
 
                   {/* Fórmula expandida */}
@@ -365,7 +363,7 @@ export function ModalMinMax({
                             min="0"
                             value={minPersonalizado}
                             onChange={(e) => setMinPersonalizado(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none"
                             placeholder="0"
                           />
                         </div>
@@ -376,23 +374,23 @@ export function ModalMinMax({
                             min="0"
                             value={maxPersonalizado}
                             onChange={(e) => setMaxPersonalizado(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none"
                             placeholder="0"
                           />
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
-                          Motivo del ajuste <span className="text-gray-400">(mínimo 10 caracteres)</span>
+                          Motivo del ajuste <span className="text-gray-500">(mínimo 10 caracteres)</span>
                         </label>
                         <textarea
                           value={motivo}
                           onChange={(e) => setMotivo(e.target.value)}
                           rows={2}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
                           placeholder="Ej: Ajuste por temporada alta de construcción"
                         />
-                        <p className="text-xs text-gray-400 mt-1 text-right">
+                        <p className="text-xs text-gray-500 mt-1 text-right">
                           {(motivo ?? '').trim().length}/10 caracteres
                         </p>
                       </div>
@@ -430,19 +428,19 @@ export function ModalMinMax({
                   Historial de cambios
                 </h4>
                 {historial.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-2">Este ítem no ha sido modificado.</p>
+                  <p className="text-sm text-gray-500 py-2">Este ítem no ha sido modificado.</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {historial.map((h) => (
                       <div key={h.accion_id} className="rounded-md bg-gray-50 px-3 py-2">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-xs text-gray-600">{textoDelCambio(h)}</p>
-                          <p className="text-xs text-gray-400 whitespace-nowrap">
+                          <p className="text-xs text-gray-500 whitespace-nowrap">
                             {formatearFechaHora(h.creada_en)}
                           </p>
                         </div>
                         {h.notas && (
-                          <p className="text-xs text-gray-400 mt-1 italic">{h.notas}</p>
+                          <p className="text-xs text-gray-500 mt-1 italic">{h.notas}</p>
                         )}
                       </div>
                     ))}

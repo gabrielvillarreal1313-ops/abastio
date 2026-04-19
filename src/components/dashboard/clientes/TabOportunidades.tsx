@@ -10,20 +10,11 @@ import type { OportunidadesClienteData } from '@/lib/queries/oportunidades-clien
 import { ProductoLink } from '@/components/ui/ProductoLink';
 import { formatMXNCorto, formatMXNTabla, formatPct } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
+import { FilaRecompraExpandible } from './FilaRecompraExpandible';
 
 interface Props {
   data: OportunidadesClienteData;
   clienteId: number;
-}
-
-function formatFecha(iso: string): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function diasHace(iso: string, dias: number): string {
-  if (!iso) return '—';
-  return `${formatFecha(iso)} (hace ${conConteo(dias, 'día', 'días')})`;
 }
 
 export function TabOportunidades({ data, clienteId }: Props) {
@@ -74,39 +65,23 @@ export function TabOportunidades({ data, clienteId }: Props) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-2.5 font-medium w-8"></th>
                       <th className="px-5 py-2.5 font-medium">Producto</th>
                       <th className="px-3 py-2.5 font-medium">Categoría</th>
                       <th className="px-3 py-2.5 font-medium text-right">Intervalo normal</th>
                       <th className="px-3 py-2.5 font-medium">Última compra</th>
                       <th className="px-3 py-2.5 font-medium text-right">Retraso</th>
+                      <th className="px-3 py-2.5 font-medium text-center">Urgencia</th>
                       <th className="px-5 py-2.5 font-medium text-right">Valor est. mensual</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {recompras.map((r) => (
-                      <tr key={r.sku} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-5 py-2.5">
-                          <div className="font-medium text-gray-900 truncate max-w-[220px]" title={r.nombre_producto}>
-                            <ProductoLink sku={r.sku} nombre={r.nombre_producto} />
-                          </div>
-                          <div className="text-xs text-gray-400 font-mono">{r.sku}</div>
-                        </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-500">{r.categoria}</td>
-                        <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">
-                          cada {conConteo(r.intervalo_promedio_dias, 'día', 'días')}
-                        </td>
-                        <td className="px-3 py-2.5 text-gray-500 text-xs whitespace-nowrap">
-                          {diasHace(r.ultima_compra_fecha, r.dias_desde_ultima_compra)}
-                        </td>
-                        <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                          <span className="text-red-600 font-medium">
-                            {conConteo(r.dias_retraso, 'día de retraso', 'días de retraso')}
-                          </span>
-                        </td>
-                        <td className="px-5 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">
-                          {formatMXNTabla(r.valor_estimado_mensual)}
-                        </td>
-                      </tr>
+                      <FilaRecompraExpandible
+                        key={r.sku}
+                        clienteId={clienteId}
+                        recompra={r}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -172,7 +147,7 @@ export function TabOportunidades({ data, clienteId }: Props) {
                             {cs.top_skus.map((s) => (
                               <div key={s.sku} className="text-xs text-gray-600">
                                 <ProductoLink sku={s.sku} nombre={s.nombre} className="text-gray-600" />
-                                <span className="text-gray-400 ml-1">({formatMXNTabla(s.ingresos_promedio_mensual)}/mes)</span>
+                                <span className="text-gray-500 ml-1">({formatMXNTabla(s.ingresos_promedio_mensual)}/mes)</span>
                               </div>
                             ))}
                           </div>

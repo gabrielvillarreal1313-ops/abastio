@@ -107,7 +107,7 @@ export function ClientesEnRiesgo({ data }: Props) {
                           <ClienteLink clienteId={cliente.cliente_id} nombre={cliente.razon_social} />
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-400">{cliente.ciudad}</span>
+                          <span className="text-xs text-gray-500">{cliente.ciudad}</span>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${badgeRiesgo}`}>
                             {BADGE_TIPO_CLIENTE[cliente.tipo_cliente] || cliente.tipo_cliente}
                             {' · '}

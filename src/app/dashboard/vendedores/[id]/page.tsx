@@ -110,7 +110,7 @@ export default async function VendedorDetallePage({ params }: { params: { id: st
                           <ClienteLink clienteId={c.cliente_id} nombre={c.razon_social} />
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-xs text-gray-400">{c.ciudad}</span>
+                          <span className="text-xs text-gray-500">{c.ciudad}</span>
                           <span className="text-[10px] font-medium px-1 py-0.5 rounded text-gray-500 bg-gray-100">
                             {BADGE_TIPO_CLIENTE[c.tipo_cliente] ?? c.tipo_cliente}
                           </span>
@@ -159,7 +159,7 @@ export default async function VendedorDetallePage({ params }: { params: { id: st
                         <div className="font-medium text-gray-900 truncate max-w-[180px]" title={s.nombre_producto}>
                           <ProductoLink sku={s.sku} nombre={s.nombre_producto} />
                         </div>
-                        <div className="text-xs text-gray-400">{s.categoria}</div>
+                        <div className="text-xs text-gray-500">{s.categoria}</div>
                       </td>
                       <td className="px-3 py-2 text-right font-medium text-gray-700 whitespace-nowrap">{formatMXNTabla(s.ingresos_totales)}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">

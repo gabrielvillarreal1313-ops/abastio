@@ -44,7 +44,7 @@ function valorSort(row: ClienteLista, key: SortKey): number | string {
 function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -195,7 +195,7 @@ export function ListaClientes({ clientes }: Props) {
                       <ClienteLink clienteId={c.cliente_id} nombre={c.razon_social} />
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-gray-400">{c.ciudad}</span>
+                      <span className="text-xs text-gray-500">{c.ciudad}</span>
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-gray-500 bg-gray-100">
                         {BADGE_TIPO[c.tipo_cliente] ?? c.tipo_cliente}
                       </span>
@@ -215,7 +215,7 @@ export function ListaClientes({ clientes }: Props) {
                       c.cambio_pct < -20 ? 'text-red-600 font-medium'
                         : c.cambio_pct < 0 ? 'text-amber-600'
                         : c.cambio_pct > 0 ? 'text-emerald-600 font-medium'
-                        : 'text-gray-400'
+                        : 'text-gray-500'
                     }>
                       {formatCambioPct(c.cambio_pct)}
                     </span>

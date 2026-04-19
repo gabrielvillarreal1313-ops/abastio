@@ -7,7 +7,6 @@
 
 import { useState } from 'react';
 import { accionLogin } from '@/app/login/acciones';
-import { paginaAterrizajePorRol, type Rol } from '@/lib/auth/roles';
 
 export function FormularioLogin() {
   const [email, setEmail] = useState('');
@@ -29,27 +28,13 @@ export function FormularioLogin() {
         return;
       }
 
-      // Verificar si hay vista preferida en localStorage
-      let rutaFinal = resultado.ruta ?? '/dashboard';
-
-      try {
-        // Necesitamos el ID del usuario para la key de localStorage,
-        // pero no lo tenemos aquí. Usamos el email como proxy temporal
-        // hasta que el header cargue y establezca la key correcta.
-        // El login siempre usa el default por jerarquía — la persistencia
-        // de vista se aplica en logins subsecuentes cuando ya existe la key.
-        const keys = Object.keys(localStorage).filter((k) => k.startsWith('vista_activa_'));
-        if (keys.length > 0) {
-          const vistaGuardada = localStorage.getItem(keys[0]) as Rol | null;
-          if (vistaGuardada && ['dueno', 'comprador', 'rep'].includes(vistaGuardada)) {
-            rutaFinal = paginaAterrizajePorRol(vistaGuardada);
-          }
-        }
-      } catch {
-        // localStorage no disponible — usar default
-      }
-
-      window.location.href = rutaFinal;
+      // Siempre usar la página de aterrizaje por jerarquía (dueno → /dashboard,
+      // comprador → /dashboard/tablero-compras, rep → /dashboard/tablero-ventas).
+      // El SelectorVista del header permite cambiar de vista post-login si el
+      // usuario es multi-rol, pero esa preferencia no debe persistir al próximo
+      // login — de lo contrario el dueño queda "atrapado" en tablero-compras
+      // si alguna vez probó la vista del comprador.
+      window.location.href = resultado.ruta ?? '/dashboard';
     } catch {
       setError('Error de conexión. Intenta de nuevo.');
       setCargando(false);

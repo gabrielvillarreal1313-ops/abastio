@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { toast as sonnerToast } from 'sonner';
 import { formatMXN, formatMXNTabla, formatPct } from '@/lib/textos/formato';
 import { conConteo } from '@/lib/textos/pluralizar';
 import { getPrecioClienteSKU } from '@/lib/queries/precio-cliente-sku';
@@ -219,7 +220,6 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
 
   // Paso 3: Guardado
   const [guardando, setGuardando] = useState(false);
-  const [toast, setToast] = useState('');
 
   // Auto-guardado
   const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false);
@@ -261,7 +261,7 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
           origen: l.origen as LineaCotizacion['origen'],
         })));
       } catch (err) {
-        setToast(`Error cargando cotización: ${err instanceof Error ? err.message : 'desconocido'}`);
+        sonnerToast.error(`Error cargando cotización: ${err instanceof Error ? err.message : 'desconocido'}`);
       } finally {
         setCargandoEdicion(false);
       }
@@ -524,7 +524,7 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
         window.location.href = '/dashboard/oportunidades?tab=borradores&toast=cotizacion_creada';
       }
     } catch (err) {
-      setToast(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
+      sonnerToast.error(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);
     } finally {
       setGuardando(false);
     }
@@ -605,7 +605,7 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
                     <button key={c.id} type="button" onClick={() => { setClienteId(c.id); setBusquedaCliente(''); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50">
                       <span className="font-medium text-gray-900">{c.nombre}</span>
-                      <span className="text-xs text-gray-400 ml-2">{c.tipo}</span>
+                      <span className="text-xs text-gray-500 ml-2">{c.tipo}</span>
                     </button>
                   ))}
                 </div>
@@ -672,12 +672,12 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
                     <button key={p.sku} type="button"
                       onClick={() => agregarProducto(p.sku, p.nombre, 'manual')}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50">
-                      <span className="font-mono text-xs text-gray-400 mr-2">{p.sku}</span>
+                      <span className="font-mono text-xs text-gray-500 mr-2">{p.sku}</span>
                       <span className="text-gray-900">{p.nombre}</span>
-                      <span className="text-xs text-gray-400 ml-2">{p.categoria}</span>
+                      <span className="text-xs text-gray-500 ml-2">{p.categoria}</span>
                       <span className="text-xs ml-2">
                         {p.stock_total > 0
-                          ? <span className="text-gray-400">· Stock: {p.stock_total}</span>
+                          ? <span className="text-gray-500">· Stock: {p.stock_total}</span>
                           : <span className="text-red-500">· Sin stock</span>}
                       </span>
                     </button>
@@ -709,7 +709,7 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
                         <tr key={l.key}>
                           <td className="px-3 py-2">
                             <div className="font-medium text-gray-900 truncate max-w-[160px]">{l.nombre_producto}</div>
-                            <div className="text-xs text-gray-400 font-mono">{l.sku}</div>
+                            <div className="text-xs text-gray-500 font-mono">{l.sku}</div>
                           </td>
                           <td className="px-2 py-2">
                             <input type="number" min="1" step="1" value={l.cantidad}
@@ -769,7 +769,7 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-                <p className="text-gray-400 text-sm">Agrega productos buscando arriba o desde las recomendaciones</p>
+                <p className="text-gray-500 text-sm">Agrega productos buscando arriba o desde las recomendaciones</p>
               </div>
             )}
 
@@ -800,14 +800,42 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
                 <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
                   {recompras.slice(0, 10).map((r) => {
                     const yaAgregado = lineas.some((l) => l.sku === r.sku);
+                    // Ratio dias_desde_ultima / intervalo_promedio para nivel de urgencia
+                    const ratio = r.intervalo_promedio_dias > 0
+                      ? r.dias_desde_ultima_compra / r.intervalo_promedio_dias
+                      : 0;
+                    let urgencia: { texto: string; clase: string };
+                    if (ratio > 2.5) {
+                      urgencia = { texto: 'Crítica', clase: 'text-red-800 bg-red-100' };
+                    } else if (ratio >= 1.5) {
+                      urgencia = { texto: 'Alta', clase: 'text-orange-800 bg-orange-100' };
+                    } else {
+                      urgencia = { texto: 'Media', clase: 'text-yellow-800 bg-yellow-100' };
+                    }
+                    const tituloBoton = r.cantidad_ultima_compra > 0
+                      ? `Última vez compró ${r.cantidad_ultima_compra} uds`
+                      : undefined;
                     return (
                       <div key={r.sku} className="px-3 py-2 flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-xs font-medium text-gray-900 truncate">{r.nombre_producto}</div>
-                          <div className="text-[10px] text-gray-500">Hace {r.dias_desde_ultima_compra} días · cada {r.intervalo_promedio_dias}d</div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="text-xs font-medium text-gray-900 truncate">{r.nombre_producto}</div>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${urgencia.clase}`}>
+                              {urgencia.texto}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            Compra cada ~{r.intervalo_promedio_dias}d · Atrasado {r.dias_retraso}d
+                          </div>
+                          {r.cantidad_ultima_compra > 0 && (
+                            <div className="text-[10px] text-gray-500">
+                              Última vez compró {r.cantidad_ultima_compra} uds
+                            </div>
+                          )}
                         </div>
                         <button onClick={() => agregarProducto(r.sku, r.nombre_producto, 'recompra', r.cantidad_ultima_compra)}
                           disabled={yaAgregado}
+                          title={tituloBoton}
                           className={`text-xs px-2 py-1 rounded flex-shrink-0 ${yaAgregado ? 'text-gray-400 bg-gray-100' : 'text-amber-700 bg-amber-50 hover:bg-amber-100'}`}>
                           {yaAgregado ? '✓' : '+ Agregar'}
                         </button>
@@ -972,17 +1000,6 @@ export function WizardCotizacion({ clientes, vendedores, vendedorIdLogueado }: P
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white rounded-lg shadow-lg px-5 py-3 flex items-center gap-3">
-          <p className="text-sm">{toast}</p>
-          <button onClick={() => setToast('')} className="text-slate-400 hover:text-white">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

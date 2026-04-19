@@ -34,7 +34,7 @@ export function ClienteLink({ clienteId, nombre, className }: Props) {
           router.push(`/dashboard/clientes/${clienteId}`);
         }
       }}
-      className={`hover:underline cursor-pointer ${className ?? ''}`}
+      className={`text-[#92400e] hover:text-[#78350f] hover:underline cursor-pointer ${className ?? ''}`}
     >
       {nombre}
     </span>

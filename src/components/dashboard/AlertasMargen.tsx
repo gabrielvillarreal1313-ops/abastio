@@ -90,7 +90,7 @@ export function AlertasMargen({ data }: Props) {
                     </p>
 
                     {/* Detalle */}
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Últimos 3 meses vs 9 meses anteriores · {conConteo(alerta.skus_afectados, 'SKU afectado', 'SKUs afectados')}
                     </p>
                   </div>

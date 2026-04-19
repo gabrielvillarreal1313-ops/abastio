@@ -45,7 +45,7 @@ function valorSort(row: CotizacionLista, key: SortKey): number | string {
 function SortIcon({ activo, dir }: { activo: boolean; dir: SortDir }) {
   if (!activo) {
     return (
-      <svg className="w-3 h-3 text-gray-300 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="w-3 h-3 text-gray-500 ml-0.5 inline-block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
       </svg>
     );
@@ -122,7 +122,7 @@ export function TablaCotizaciones({ cotizaciones, mostrarFiltroEstado, mensajeVa
   if (cotizaciones.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-        <p className="text-gray-400 text-sm">{mensajeVacio}</p>
+        <p className="text-gray-500 text-sm">{mensajeVacio}</p>
       </div>
     );
   }

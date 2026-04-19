@@ -55,14 +55,14 @@ export function AgregarItemModal({ onAgregar, onCerrar, skusYaIncluidos }: Props
             onChange={(e) => buscar(e.target.value)}
             placeholder="Buscar por SKU o nombre..."
             autoFocus
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {buscando && <p className="px-4 py-3 text-xs text-gray-400">Buscando...</p>}
           {!buscando && termino.trim().length >= 2 && resultados.length === 0 && (
-            <p className="px-4 py-6 text-sm text-gray-400 text-center">No se encontraron productos</p>
+            <p className="px-4 py-6 text-sm text-gray-500 text-center">No se encontraron productos</p>
           )}
           {resultados.map((p) => {
             const yaIncluido = skusSet.has(p.sku);
@@ -70,14 +70,14 @@ export function AgregarItemModal({ onAgregar, onCerrar, skusYaIncluidos }: Props
               <div key={p.sku} className="px-4 py-2.5 flex items-center justify-between gap-2 hover:bg-gray-50">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-900 truncate">{p.nombre}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-gray-500">
                     <span className="font-mono">{p.sku}</span>
                     <span className="mx-1">·</span>{p.categoria}
                     <span className="mx-1">·</span>{formatMXNTabla(p.costo_unitario)}/ud
                   </div>
                 </div>
                 {yaIncluido ? (
-                  <span className="text-xs text-gray-400 flex-shrink-0">Ya en la PO</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">Ya en la PO</span>
                 ) : (
                   <button
                     onClick={() => { onAgregar(p); onCerrar(); }}

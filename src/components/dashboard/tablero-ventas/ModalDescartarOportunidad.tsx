@@ -49,7 +49,7 @@ export function ModalDescartarOportunidad({ clienteId, clienteNombre, vendedorId
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none resize-none"
           placeholder="Motivo del descarte (opcional)"
         />
         <div className="flex justify-end gap-2 mt-4">

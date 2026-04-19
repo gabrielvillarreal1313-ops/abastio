@@ -119,7 +119,7 @@ export default async function CotizacionDetallePage({ params }: { params: { id: 
                     <td className="px-3 py-2.5 text-gray-500 text-xs">{l.unidad}</td>
                     <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">{formatMXNTabla(l.precio_unitario)}</td>
                     <td className="px-3 py-2.5 text-right text-gray-600">
-                      {l.descuento_pct > 0 ? `${l.descuento_pct}%` : '—'}
+                      {l.descuento_pct}%
                     </td>
                     <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">{formatMXNTabla(l.precio_final)}</td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap">

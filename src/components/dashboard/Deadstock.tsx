@@ -47,7 +47,7 @@ export function Deadstock({ data }: Props) {
         <p className="text-3xl font-semibold text-red-700 tracking-tight">
           {formatMXNCorto(capitalTotal)}
         </p>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 mt-1">
           {conConteo(items.length, 'SKU afectado', 'SKUs afectados')}
         </p>
       </div>
@@ -78,7 +78,7 @@ export function Deadstock({ data }: Props) {
                       <div className="font-medium text-gray-900 truncate max-w-[220px]" title={item.nombre}>
                         <ProductoLink sku={item.sku} nombre={item.nombre} />
                       </div>
-                      <div className="text-xs text-gray-400">{item.categoria}</div>
+                      <div className="text-xs text-gray-500">{item.categoria}</div>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
                       {item.bodegas_con_stock}

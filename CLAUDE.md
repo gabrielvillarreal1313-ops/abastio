@@ -22,7 +22,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 
 ## Base de datos
 
-13 tablas en Supabase (project: `talinunhftglhoghwacq`):
+16 tablas en Supabase (project: `talinunhftglhoghwacq`):
 
 **Datos del negocio (seed):**
 - `bodegas` — 2 filas (León, Querétaro)
@@ -49,11 +49,14 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 **Tracking de acciones del rep (Fase 9):**
 - `oportunidades_trabajadas` — acciones del rep sobre oportunidades de clientes. Tipos de acción: `cotizada`, `descartada`, `pospuesta`. Pospuestas tienen `fecha_reaparicion` obligatoria. Opcionalmente linkea a `cotizacion_id`
 
+**Reportes guardados (Fase 13):**
+- `reportes_guardados` — configuraciones de Explorer guardadas por usuario con soporte de ancla al dashboard. Campos: `id` UUID, `usuario_id` FK → usuarios, `nombre`, `descripcion`, `configuracion` JSONB (dimensión + filtros + sort), `anclado` bool, `orden_ancla` integer para ordenar los anclados. Índice parcial `idx_reportes_anclados` sobre `(usuario_id, anclado) WHERE anclado = true` para lecturas rápidas del Resumen Ejecutivo
+
 **Cache de oportunidades (pre-computado con `refrescar_oportunidades()`):**
 - `oportunidades_recompra_cache` — 3,021 pares cliente-SKU vencidos
 - `oportunidades_cross_sell_cache` — 2,880 oportunidades por tipo de cliente
 
-60+ RPC functions de Postgres (todas las agregaciones en SQL, nunca en JS):
+80+ RPC functions de Postgres (todas las agregaciones en SQL, nunca en JS):
 
 **Resumen Ejecutivo:**
 - `get_kpis_periodo(fecha_desde, fecha_hasta)` — KPIs agregados
@@ -158,6 +161,23 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `get_historial_oportunidades_rep(p_vendedor_id, p_fecha_desde, p_fecha_hasta)` — historial de acciones con JOIN a clientes. Filtros opcionales por fecha. LIMIT 200
 - `get_resumen_oportunidades_rep(p_vendedor_id)` — contadores: total, trabajadas_hoy, pendientes, pospuestas_activas, descartadas_total
 
+**Inteligencia de oportunidades (Fase 11):**
+- `get_cadencia_cliente_sku(p_cliente_id, p_sku)` — historial detallado de compras del par cliente-SKU. Retorna fecha, cantidad, subtotal, e `intervalo_dias` desde la compra anterior (NULL para la primera). Base para el tab Cadencia
+- `get_resumen_cadencia_cliente_sku(p_cliente_id, p_sku)` — métricas agregadas + predicción: `total_compras`, `intervalo_promedio_dias`, `intervalo_minimo/maximo_dias`, `desviacion_intervalo_dias`, `dias_desde_ultima_compra`, `fecha_estimada_proxima`, `dias_retraso`, `regularidad` (`muy_regular`/`regular`/`irregular` basado en desviación/promedio), `cantidad_promedio`, `valor_promedio`. Requiere ≥2 compras para cálculos de intervalo; menos de 2 retorna NULLs en esos campos
+- `get_estacionalidad_cliente_sku(p_cliente_id, p_sku)` — 12 filas (una por mes) comparando año actual vs año anterior. Año actual = EXTRACT(YEAR FROM MAX(fecha)) (regla 10). `tiene_patron = true` cuando ambos años tienen compras en ese mes (repetición estacional)
+- `get_contexto_oportunidad_recompra(p_cliente_id, p_sku)` — sintetiza cadencia + estacionalidad en texto legible para UI. Retorna `texto_cadencia` ("Este cliente compra cada ~N días. Última compra hace M días…"), `texto_estacionalidad` (NULL si el mes actual no tiene patrón), `nivel_urgencia` (`media`/`alta`/`critica` por ratio `dias_retraso / intervalo_promedio`), `regularidad`. Llama internamente a las otras 3 RPCs de la fase
+
+**Explorer (Fase 12):**
+- `get_explorer(p_dimension TEXT, p_filtros JSONB DEFAULT '{}')` — RPC parametrizada única que pivota ventas por cualquier dimensión soportada (`bodegas`, `vendedores`, `clientes`, `categorias`, `productos`, `meses`, `ciudades`) con métricas YTD vs LYTD, deltas absolutos y porcentuales, gross margin del mismo período, y sparkline mensual como JSONB array. `p_filtros` acepta combinaciones de `bodega_id`/`vendedor_id`/`cliente_id`/`categoria`/`sku`/`ciudad` para filtros cruzados. LYTD se corta a la misma fecha del año anterior (`MAX(fecha) - INTERVAL '1 year'`) para comparación justa. `LIMIT 500` como safety net.
+
+**Reportes (Fase 13):**
+- `guardar_reporte(p_usuario_id, p_nombre, p_descripcion, p_configuracion)` — inserta un nuevo reporte y retorna su UUID. Valida que `p_nombre` no esté vacío (TRIM) y que `p_configuracion` contenga la llave `dimension`
+- `get_reportes_usuario(p_usuario_id)` — todos los reportes del usuario ordenados: anclados primero (por `orden_ancla` ASC), luego el resto por `actualizado_en` DESC
+- `get_reportes_anclados(p_usuario_id)` — solo los reportes con `anclado = true` del usuario, ordenados por `orden_ancla` ASC. Existe por performance — el Resumen Ejecutivo lee de aquí directamente
+- `toggle_ancla_reporte(p_reporte_id, p_usuario_id, p_anclado)` — anclar/desanclar. Al anclar, asigna `orden_ancla = MAX(orden_ancla) + 1` de los anclados del usuario para que quede al final. Al desanclar, pone `orden_ancla = NULL`. Solo permite si `usuario_id` coincide
+- `eliminar_reporte(p_reporte_id, p_usuario_id)` — DELETE con guard de ownership. Retorna boolean de éxito
+- `actualizar_reporte(p_reporte_id, p_usuario_id, p_nombre, p_descripcion, p_configuracion)` — patch parcial: solo actualiza los campos no-NULL pasados. Usa COALESCE con los valores actuales
+
 **Estados de cotización y transiciones:**
 - `borrador` → `enviada` (Enviar a ERP) | eliminado (Cancelar → DELETE)
 - `enviada` → `completada` (Completar) | `cancelada` (Cancelar → UPDATE)
@@ -248,6 +268,12 @@ Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tiene
 
 28. **El badge de "Rec./Custom" en Tab Planeación se deriva de `acciones_comprador`, no de comparación de valores.** El campo `tiene_accion_registrada` de `get_planeacion_inventario` lee de `acciones_comprador` (filtrando por `tipo_accion = 'min_max_override'` y el par producto-bodega en metadata). Si hay al menos una acción registrada, el badge aplica con el `tipo_seleccion` de la última acción. Si no hay acciones, no hay badge. NO usar comparación `min_actual === min_recomendado` porque un valor del seed casualmente distinto al recomendado se vería como "Custom" sin que nadie lo haya tocado.
 
+29. **Campos numéricos siempre muestran un número, nunca "—".** Cuando un valor numérico es 0 o null, mostrar `0`, `0%`, `$0 MXN`, o el formato correspondiente — no un guión largo. El guión "—" se reserva exclusivamente para campos de texto o fecha donde null significa genuinamente "no aplica" o "sin dato" (ej: `vendedor_principal`, `notas`, `fecha_reaparicion`, `dias_sin_comprar` cuando el cliente nunca ha comprado). Regla de oro: si el campo se puede sumar o promediar, su valor vacío es cero, no un guión.
+
+30. **Contraste mínimo de texto: `text-gray-500` para texto informativo, `text-gray-600` para datos de tabla.** NO usar `text-gray-300` ni `text-gray-400` para texto que el usuario necesita leer (SKUs, valores en tablas, mensajes de estado vacío, porcentajes neutros). `text-gray-400` se reserva exclusivamente para placeholders de inputs y texto decorativo que no transmite información. Los grises más claros (`gray-300`, `gray-200`, `gray-100`, `gray-50`) son para bordes, fondos y dividers, nunca para texto. Para estados deshabilitados en controles interactivos, usar `disabled:text-gray-500`.
+
+31. **Deuda técnica de integración ERP documentada en BACKLOG.md.** Antes de crear tablas nuevas o RPCs que dependan de relaciones entre entidades (vendedor↔cliente, proveedor↔producto, categoría jerárquica), verificar la sección "Deuda técnica para integración con ERP" del BACKLOG. El V0 usa simplificaciones (vendedor calculado, proveedor como texto, categorías planas) que funcionan con datos sintéticos pero requieren refactor en V1.
+
 ## Estructura del proyecto
 
 ```
@@ -258,11 +284,12 @@ src/
 │   │   ├── page.tsx            — Página de login (verifica sesión, muestra formulario)
 │   │   └── acciones.ts         — Server Actions: accionLogin, accionLogout
 │   ├── dashboard/
-│   │   ├── layout.tsx          — Sidebar dinámico por roles + HeaderUsuario
+│   │   ├── layout.tsx          — Sidebar colapsable por roles (Server Component + SidebarNav client)
 │   │   ├── page.tsx            — Resumen Ejecutivo (Server Component)
 │   │   ├── tablero-ventas/
 │   │   │   ├── page.tsx        — Tablero de ventas del rep (Fase 7, KPIs + oportunidades + cotizaciones + riesgo)
-│   │   │   └── mi-actividad/page.tsx — Mi actividad del rep (Fase 9, historial de oportunidades trabajadas)
+│   │   │   ├── mi-actividad/page.tsx — Mi actividad del rep (Fase 9, historial de oportunidades trabajadas)
+│   │   │   └── mi-desempeno/page.tsx — Mi desempeño del rep (Fase 10, 8 KPIs + gráfica + top clientes/SKUs)
 │   │   ├── tablero-compras/
 │   │   │   └── page.tsx        — Tablero de compras (KPIs, POs, desabasto, alertas)
 │   │   ├── compras/
@@ -280,10 +307,16 @@ src/
 │   │   ├── vendedores/
 │   │   │   ├── page.tsx        — Lista de vendedores
 │   │   │   └── [id]/page.tsx   — Detalle de vendedor
-│   │   └── oportunidades/
-│   │       ├── page.tsx        — Oportunidades + Borradores + Cotizaciones (3 tabs)
-│   │       ├── nueva/page.tsx  — Wizard de cotización (crear/editar)
-│   │       └── [id]/page.tsx   — Detalle de cotización con acciones
+│   │   ├── oportunidades/
+│   │   │   ├── page.tsx        — Oportunidades + Borradores + Cotizaciones (3 tabs)
+│   │   │   ├── nueva/page.tsx  — Wizard de cotización (crear/editar)
+│   │   │   └── [id]/page.tsx   — Detalle de cotización con acciones
+│   │   ├── explorer/
+│   │   │   ├── page.tsx        — Explorer multidimensional (Fase 12, solo dueño)
+│   │   │   └── loading.tsx     — Skeleton de carga del Explorer
+│   │   └── reportes/
+│   │       ├── page.tsx        — Lista de reportes guardados del usuario (Fase 13)
+│   │       └── loading.tsx     — Skeleton de carga de reportes
 │   ├── page.tsx                — Test de conexión a Supabase (legacy)
 │   └── layout.tsx              — Root layout
 ├── components/
@@ -308,9 +341,11 @@ src/
 │       ├── AlertasMargen.tsx
 │       ├── OportunidadesVenta.tsx
 │       ├── OperacionCompras.tsx           — Sección de compras en Resumen Ejecutivo (Fase 5)
+│       ├── SidebarNav.tsx                 — Navegación colapsable por secciones (Fase 10, 'use client')
 │       ├── tablero-ventas/
 │       │   ├── TableroVentas.tsx          — Tablero operativo del rep (Fase 7+9, KPIs + acciones inline + cotizaciones + riesgo)
 │       │   ├── MiActividadRep.tsx         — Historial de oportunidades trabajadas (Fase 9, cards + tabla filtrable)
+│       │   ├── MiDesempenoRep.tsx         — Métricas personales del rep (Fase 10, 8 KPIs + gráfica + tops)
 │       │   ├── ModalDescartarOportunidad.tsx — Modal de descarte con notas opcionales
 │       │   └── ModalPosponerOportunidad.tsx — Modal de posposición con date picker y quick picks
 │       ├── tablero-compras/
@@ -353,12 +388,16 @@ src/
 │       │   └── ListaProductos.tsx         — Tabla filtrable con sorting
 │       ├── vendedores/
 │       │   └── ListaVendedores.tsx        — Tabla filtrable con sorting
-│       └── oportunidades/
-│           ├── OportunidadesTabs.tsx       — Tabs Oportunidades/Borradores/Cotizaciones
-│           ├── ListaOportunidades.tsx      — Tabla de clientes con oportunidades
-│           ├── TablaCotizaciones.tsx       — Tabla reutilizable de cotizaciones
-│           ├── WizardCotizacion.tsx        — Wizard 3 pasos (crear/editar)
-│           └── AccionesCotizacion.tsx      — Botones de acción por estado
+│       ├── oportunidades/
+│       │   ├── OportunidadesTabs.tsx       — Tabs Oportunidades/Borradores/Cotizaciones
+│       │   ├── ListaOportunidades.tsx      — Tabla de clientes con oportunidades
+│       │   ├── TablaCotizaciones.tsx       — Tabla reutilizable de cotizaciones
+│       │   ├── WizardCotizacion.tsx        — Wizard 3 pasos (crear/editar)
+│       │   └── AccionesCotizacion.tsx      — Botones de acción por estado
+│       ├── explorer/
+│       │   ├── ExplorerView.tsx            — Vista multidimensional (Fase 12, tabs + filtros + tabla con sparklines)
+│       │   └── ListaReportes.tsx           — Tabla de reportes guardados con toggle ancla + delete (Fase 13)
+│       └── ReportesAnclados.tsx            — Secciones compactas de reportes anclados en Resumen Ejecutivo (Fase 13)
 ├── lib/
 │   ├── auth/
 │   │   ├── roles.ts            — Tipos Rol, UsuarioActual + calcularRolPrimario + paginaAterrizajePorRol
@@ -391,6 +430,11 @@ src/
 │   │   ├── oportunidades-tablero-rep.ts  — Fase 9 (oportunidades filtradas para tablero del rep)
 │   │   ├── historial-oportunidades-rep.ts  — Fase 9 (historial de acciones del rep)
 │   │   ├── resumen-oportunidades-rep.ts  — Fase 9 (contadores para header del tablero)
+│   │   ├── cadencia-cliente-sku.ts  — Fase 11 (historial + resumen de cadencia con predicción)
+│   │   ├── estacionalidad-cliente-sku.ts  — Fase 11 (12 meses año actual vs año anterior)
+│   │   ├── contexto-oportunidad.ts  — Fase 11 (texto legible + badges de urgencia)
+│   │   ├── explorer.ts  — Fase 12 (RPC parametrizada multidimensional con filtros cruzados)
+│   │   ├── reportes-guardados.ts  — Fase 13 (CRUD de reportes + anclado)
 │   │   └── (todos con paginación defensiva .range() si pueden exceder 1000 filas)
 │   ├── textos/
 │   │   ├── pluralizar.ts       — Concordancia gramatical español
@@ -507,6 +551,67 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Sidebar: "Mi actividad" agregada para rol rep después de Oportunidades
 - Toasts: `oportunidad_descartada` y `oportunidad_pospuesta`
 - RPCs: `registrar_oportunidad_trabajada`, `get_oportunidades_tablero_rep`, `get_historial_oportunidades_rep`, `get_resumen_oportunidades_rep`
+
+**Métricas del rep y reorganización (Fase 10):**
+- Página `/dashboard/tablero-ventas/mi-desempeno` con 8 KPI cards (ingresos, margen, cotizaciones, ticket, clientes activos, transacciones, oportunidades pendientes, trabajadas hoy), gráfica de ingresos 12 meses (reutiliza GraficaIngresosMensuales), top clientes y top SKUs lado a lado
+- Sidebar reorganizado con secciones colapsables: Resumen (link directo, solo dueño), grupo Compras (colapsable), grupo Ventas (colapsable). Componente `SidebarNav.tsx` ('use client') con `usePathname` para detectar grupo activo
+- Página `/dashboard/compras` renombrada visualmente a "Inventario" en sidebar y título (URL sin cambio)
+- Hito: módulo del rep completo. Los dos roles operativos (comprador y rep) están terminados
+
+**Inteligencia de oportunidades (Fase 11):**
+- Análisis de cadencia por par cliente-SKU: intervalo promedio, mínimo/máximo y desviación; predicción de próxima compra (`ultima_compra + intervalo_promedio`); clasificación de regularidad (`muy_regular`/`regular`/`irregular`) basada en `desviacion / promedio`
+- Detección de estacionalidad simple sin ML: 12 meses comparando año actual vs año anterior usando `EXTRACT(YEAR FROM MAX(fecha))` como año de referencia (regla 10). `tiene_patron = true` cuando hay compras en ambos años en el mismo mes
+- Contexto enriquecido en oportunidades de recompra: texto legible ("Este cliente compra este producto cada ~N días. Última compra hace M días — probablemente necesita reorden.") + badges de urgencia (Media/Alta/Crítica por ratio `dias_retraso / intervalo_promedio`) y regularidad
+- Tab Oportunidades del detalle de cliente: filas expandibles (chevron ▸/▾) con 3 sub-tabs internos — Cadencia (historial + predicción + badges), Uso (KPIs de volumen + mini gráfica de barras de cantidades), Estacional (banner + tabla de 12 meses con meses resaltados cuando hay patrón). Las 4 RPCs de contexto se cargan bajo demanda en paralelo al expandir la fila y se cachean en estado local
+- Tablero de ventas del rep: para los primeros 7 clientes de "Oportunidades de mayor valor", se carga asíncronamente (sin bloquear el render) el contexto del par de recompra de mayor valor. Cada fila muestra texto de cadencia debajo del nombre del cliente + badge de urgencia al lado, y texto de estacionalidad si aplica. Skeleton `h-3 w-48 animate-pulse` mientras carga; degradación silenciosa si el cliente no tiene recompras en cache
+- Wizard de cotizaciones (panel de recomendaciones): cada recompra muestra badge de urgencia (ratio client-side: `dias_desde_ultima / intervalo_promedio` con cortes 1.5 y 2.5), subtexto accionable "Compra cada ~Nd · Atrasado Md", y línea "Última vez compró X uds" + tooltip en el botón Agregar. Sin llamadas extra a RPCs, usa los datos ya presentes en `getRecomprasCliente`
+- RPCs: `get_cadencia_cliente_sku`, `get_resumen_cadencia_cliente_sku`, `get_estacionalidad_cliente_sku`, `get_contexto_oportunidad_recompra`
+- Archivos de queries: `cadencia-cliente-sku.ts`, `estacionalidad-cliente-sku.ts`, `contexto-oportunidad.ts`
+- Componente nuevo: `src/components/dashboard/clientes/FilaRecompraExpandible.tsx`
+
+**Explorer (Fase 12):**
+- Página `/dashboard/explorer` con tabla multidimensional accesible solo para rol `dueno` (reps y compradores tienen sus propios módulos operativos; redirige a `/dashboard` si no tiene rol)
+- 7 dimensiones pivotables en tabs horizontales: Bodegas, Vendedores, Clientes, Categorías, Productos, Meses, Ciudades. Default: Bodegas
+- Métricas por fila: Ventas YTD, Ventas LYTD (cortado al mismo día del año anterior), Δ Ventas ($ con flecha ↑/↓), Δ %, GM YTD, GM LYTD, Δ GM. Deltas con color condicional verde/rojo
+- Sparklines por fila con Recharts `<LineChart>` miniatura (120×30, stroke `slate-400`, sin ejes ni dots) alimentadas por el `sparkline_data` JSONB de la RPC
+- Filtros cruzados: botón "Aplicar" por fila agrega el valor como filtro y salta automáticamente a la siguiente dimensión natural (Bodegas → Vendedores → Clientes → Productos; Categorías/Ciudades también sugieren siguiente). Meses oculta el botón porque no es filtro cruzado válido
+- Chips de filtros activos removibles con × individual y botón "Limpiar filtros". Mientras no hay filtros muestra "Sin filtros aplicados" en gris
+- Sorting client-side por cualquier columna (click en header alterna asc/desc con indicador ▲/▼). Default: Ventas YTD desc
+- Buscador client-side sobre `dimension_label` y `dimension_extra` (instantáneo, sin re-fetch). Contador de resultados a la derecha
+- Label informativo "Período: YTD" (selector de períodos configurables diferido)
+- Navegación a detalle: la columna de nombre usa `ClienteLink`/`ProductoLink`/`VendedorLink` para dimensiones correspondientes. Bodegas, Categorías, Meses, Ciudades son texto plano (no tienen página de detalle)
+- Overlay semi-transparente con spinner durante re-fetch (cambio de dimensión o filtros); las filas existentes permanecen visibles para evitar flash
+- Sidebar: nueva entrada "Explorer" al mismo nivel que "Resumen" (link directo, no grupo colapsable), visible solo para dueño, posición entre "Resumen" y el grupo "Compras"
+- RPC: `get_explorer(p_dimension, p_filtros)` — única RPC parametrizada con filtros cruzados JSONB
+- Archivos: `src/app/dashboard/explorer/page.tsx`, `src/app/dashboard/explorer/loading.tsx`, `src/components/dashboard/explorer/ExplorerView.tsx`, `src/lib/queries/explorer.ts`
+
+**Reportes guardados (Fase 13):**
+- Tabla `reportes_guardados` con CRUD completo vía 6 RPCs (`guardar_reporte`, `get_reportes_usuario`, `get_reportes_anclados`, `toggle_ancla_reporte`, `eliminar_reporte`, `actualizar_reporte`). `configuracion` JSONB captura `{dimension, filtros, sort_column, sort_direction}` del Explorer
+- Botón "Guardar como reporte" en la barra de controles del Explorer. Abre modal con nombre (obligatorio), descripción (opcional), checkbox "Anclar a mi dashboard". Muestra preview de la dimensión + filtros que se guardarán. Al guardar: `guardarReporte()` → si está marcado anclar, `toggleAnclaReporte(id, true)` → redirect con `?toast=reporte_guardado`
+- Página `/dashboard/reportes` con tabla de reportes del usuario: columnas Nombre (link al Explorer con `?reporte=<id>`), Descripción, Dimensión, Filtros (badge con conteo), Anclado (pin lleno/vacío clickeable para toggle), Fecha (`tiempoRelativo` si <7 días), Acciones (eliminar con modal de confirmación). Solo visible para rol `dueno`
+- Carga de reporte guardado en Explorer: lee `?reporte=<id>` vía `useSearchParams`, busca el reporte en la lista pre-cargada, inicializa estado (dimensión, filtros, sort) desde `configuracion` y re-fetch. Banner sutil "Viendo reporte: {nombre}" con botón × para cerrar (limpia el query param)
+- Reportes anclados en Resumen Ejecutivo: sección que para cada reporte anclado (máximo 5) carga `getExplorer` en paralelo y renderiza una tabla compacta de 5-7 filas con Ventas YTD, Δ%, GM YTD, Δ%. Nombres clickeables para dimensiones con detalle (ClienteLink/ProductoLink/VendedorLink). Link "Abrir en Explorer →" al Explorer con reporte pre-cargado. Posición: después de "Operación de compras", antes de "Rendimiento por vendedor". Si no hay anclados, la sección simplemente no existe
+- 3 reportes predefinidos seeded para el dueño Roberto Gómez: "Top Territorios" (bodegas), "Top Clientes", "Top Productos" — todos anclados por default con `orden_ancla` 1/2/3
+- Sidebar: nueva entrada "Reportes" al mismo nivel que "Explorer" y "Resumen", solo visible para dueño, posición después de "Explorer"
+- Toasts nuevos: `reporte_guardado`, `reporte_eliminado`, `reporte_anclado`, `reporte_desanclado`
+- Archivos: `src/app/dashboard/reportes/page.tsx`, `src/app/dashboard/reportes/loading.tsx`, `src/components/dashboard/explorer/ListaReportes.tsx`, `src/components/dashboard/ReportesAnclados.tsx`, `src/lib/queries/reportes-guardados.ts`
+
+**Polish final y demo prep (Fase 14):**
+- Identidad visual "Ámbar equilibrado" aplicada en toda la app:
+  - Tipografía **IBM Plex Sans** (pesos 400/500/600/700) cargada vía `next/font/google` y expuesta como `--font-ibm-plex` en la `fontFamily.sans` de Tailwind
+  - Sidebar con gradiente oscuro `from-[#0f1419] to-[#141c24]`, logo claro, grupos en uppercase tracking-widest, items activos con fondo `rgba(245,158,11,0.10)` + texto `text-[#fbbf24]` + borde izquierdo ámbar
+  - Links de entidades clickeables (`ClienteLink`/`ProductoLink`/`VendedorLink`) en tono cálido oscuro `text-[#92400e] hover:text-[#78350f]`
+  - Botones primarios `bg-slate-900 hover:bg-slate-800 text-white` (confirmado en wizard, modales, POs)
+  - KPICard con `text-[11px] uppercase tracking-wide` en labels, valores `text-2xl font-bold`, deltas con paleta verde `text-[#166534] bg-[#f0fdf4]` / rojo `text-[#991b1b] bg-[#fef2f2]`
+  - Tokens `brand.*` y `sidebar.*` disponibles en `tailwind.config.ts` para reuso futuro
+- **Seed de inventario regenerado con distribución realista** (Fase 14-2): script `scripts/seed/regenerar-inventario.ts` que lee `cantidad_minima/maxima` actuales (conserva overrides del comprador), asigna un bucket por probabilidades objetivo (70% saludable, 15% sobrestock, 10% próximo a desabasto, 5% desabasto crítico), escribe `cantidad_actual` + `ultima_entrada/salida` coherentes, y refresca el cache de oportunidades al final. Antes: ~97% del inventario en stock 0 (1,500+ ítems en desabasto crítico, irreal). Después: distribución 70.6/15.8/8.7/4.9, ~204 SKUs en desabasto (números manejables para un comprador real)
+- **Loading skeletons en las 21 rutas de `/dashboard/*`** (Fase 14-3): 10 nuevos `loading.tsx` creados para Resumen, clientes/productos/vendedores (lista + detalle), oportunidades (+ detalle + nueva). Todos siguen el mismo patrón de `animate-pulse` con bloques proporcionales a la estructura final de la página
+- **Audit de contraste y valores numéricos completado**: migración de 8 ocurrencias de `text-gray-400` a `text-gray-500` en texto informativo (categorías, ciudades, SKUs en headers, subtextos) respetando regla 30; corrección de 2 violaciones de regla 29 (`—` en contadores numéricos → `0`); unificación del delta null de gross margin en `ReportesAnclados` usando el mismo badge "Nuevo" que `ExplorerView`
+- **Toast unificado con sonner en todo el codebase**: eliminado el toast custom interno del `WizardCotizacion` (div fijo `bg-slate-900` en bottom-6 right-6) y migrado a `sonner.toast.error()`. Todas las mutaciones del producto ahora usan el patrón oficial: `?toast=CODIGO` + `useToastFromUrl` para redirects, y `sonner` directo para errores inline
+- **Bug de aterrizaje del dueño fixeado**: `FormularioLogin` leía `vista_activa_*` del localStorage para override de la redirect post-login, lo que dejaba a cualquier dueño que hubiera probado la vista de comprador "atrapado" en `/dashboard/tablero-compras`. Eliminada esa lógica — el login ahora siempre honra `paginaAterrizajePorRol(rolPrimario)` (regla de jerarquía `dueno > comprador > rep`)
+- **Sidebar con highlight único**: la lógica anterior `pathname === href || pathname.startsWith(href + '/')` marcaba como activos simultáneamente items con hrefs anidados (ej: "Inventario" y "Mi actividad" cuando `/dashboard/compras/mi-actividad`). Nueva estrategia **"más específico gana"**: se calcula un `hrefActivo` recolectando todos los hrefs del sidebar, filtrando los que coinciden con el pathname, y quedándose con el más largo. El loop de items compara `hrefActivo === item.href`, garantizando exactamente uno resaltado
+- **Verificación end-to-end de los 3 flujos completada**: dueño (aterriza en Resumen, ve Explorer/Reportes, reportes anclados visibles en Resumen), comprador (tablero de compras con distribución realista, POs regeneradas, flujo de override min/max), rep (tablero de ventas con contexto enriquecido, wizard de cotizaciones, modal posponer con quick picks funcionales)
+- Hito final: **V0 cerrado, producto listo para demos a inversionistas y primeros clientes**
 
 ## Convenciones de código
 

@@ -116,7 +116,7 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
                         <div className="font-medium text-gray-900 truncate max-w-[220px]" title={sku.nombre_producto}>
                           <ProductoLink sku={sku.sku} nombre={sku.nombre_producto} />
                         </div>
-                        <div className="text-xs text-gray-400">{sku.categoria}</div>
+                        <div className="text-xs text-gray-500">{sku.categoria}</div>
                       </td>
                       <td className="px-3 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">{formatMXNTabla(sku.ingresos_totales)}</td>
                       <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">{formatUnidades(sku.unidades_totales)}</td>

@@ -31,9 +31,9 @@ export function DescartarModal({ onConfirmar, onCerrar }: Props) {
           onChange={(e) => setNotas(e.target.value)}
           rows={3}
           placeholder="Ej: el proveedor no tiene stock disponible este mes."
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 mb-1"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 mb-1"
         />
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-gray-500 mb-4">
           Mínimo 10 caracteres ({notas.trim().length}/10)
         </p>
 

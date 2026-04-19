@@ -30,7 +30,7 @@ export function SeccionProximosDesabasto({ items }: Props) {
 
       {items.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-500 text-sm">
             No hay items próximos a entrar en desabasto en los próximos 14 días.
           </p>
         </div>

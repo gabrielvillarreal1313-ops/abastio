@@ -76,7 +76,7 @@ export function TablaLineasPo({
       </div>
 
       {/* Conteo */}
-      <p className="text-xs text-gray-400 mb-2">
+      <p className="text-xs text-gray-500 mb-2">
         Mostrando {inicio + 1}–{fin} de {lineasFiltradas.length} items
         {busqueda.trim() && ` (filtrados de ${totalSinFiltro})`}
       </p>
@@ -85,14 +85,14 @@ export function TablaLineasPo({
       {lineasFiltradas.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
           {busqueda.trim() ? (
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-500 text-sm">
               Ningún item coincide con la búsqueda.{' '}
               <button onClick={() => handleBusqueda('')} className="text-slate-600 underline">
                 Limpiar búsqueda
               </button>
             </p>
           ) : (
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-500 text-sm">
               Esta orden no tiene ítems. Agrega productos con el botón &lsquo;+ Agregar ítem&rsquo;.
             </p>
           )}
@@ -138,7 +138,7 @@ export function TablaLineasPo({
           <button
             onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
             disabled={paginaActual === 1}
-            className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+            className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-500"
           >
             ← Anterior
           </button>
@@ -148,7 +148,7 @@ export function TablaLineasPo({
           <button
             onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
             disabled={paginaActual === totalPaginas}
-            className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+            className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-500"
           >
             Siguiente →
           </button>
@@ -199,8 +199,8 @@ function FilaLinea({ linea, puedeEditar, inputRef, onKeyDown, onCantidadChange, 
       </td>
       <td className="px-2 py-2 text-right text-gray-500 tabular-nums text-xs">{formatUnidades(linea.stock_actual)}</td>
       <td className="px-2 py-2 text-right text-gray-500 tabular-nums text-xs">{formatUnidades(linea.minimo_recomendado)}</td>
-      <td className="px-2 py-2 text-right text-gray-400 tabular-nums text-xs">
-        {linea.cantidad_sugerida != null ? formatUnidades(linea.cantidad_sugerida) : '—'}
+      <td className="px-2 py-2 text-right text-gray-500 tabular-nums text-xs">
+        {formatUnidades(linea.cantidad_sugerida ?? 0)}
       </td>
       <td className="px-2 py-2 text-right">
         {puedeEditar ? (

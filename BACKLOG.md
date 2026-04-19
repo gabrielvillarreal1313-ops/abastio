@@ -1,5 +1,7 @@
 # Backlog — Cosas diferidas del V0
 
+> **V0 CERRADO** — todas las fases (1-14) completadas. Este backlog ahora es la referencia para V1.
+
 Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para mantener scope manejable. Nada aquí está "olvidado" — está intencionalmente aplazado con fecha de revisión.
 
 **Principio operativo:** cada vez que decidimos no construir algo ahora, se agrega aquí en la misma sesión. Cada entrada tiene: qué es, por qué se difiere, y el horizonte tentativo (V1 = primer cliente pagando, V2 = 10 clientes, V3+ = escala).
@@ -77,7 +79,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Filtro por proveedor en tab Pronóstico.** Diferido a V1. Requiere campo `proveedor_principal` poblado en tabla productos, disponible cuando se conecten ERPs reales con catálogo completo.
 - **Selector de horizonte extendido hasta 18 meses.** Diferido a V1. Actualmente el selector ofrece 1, 3, 6 meses. Extender a 12 y 18 meses como en Recurrency para planeación a largo plazo.
 - **Sparkline con dos segmentos visuales (historial + pronóstico).** Diferido a V1. Deuda técnica conocida: actualmente la sparkline solo muestra historial. Implementar dos segmentos — historial en gris y proyección en color — igual que Recurrency, para distinguir visualmente dato real de proyección.
-- **Modelo de forecasting con detección de estacionalidad.** Diferido a V2. El modelo actual usa promedio ponderado simple. Implementar detección automática de patrones estacionales (ej: picos en diciembre) para pronósticos más precisos.
+- ~~**Modelo de forecasting con detección de estacionalidad.**~~ COMPLETADO — Fase 11. Implementación simple con SQL (comparación mes a mes entre años), sin ML. La RPC `get_estacionalidad_cliente_sku` compara compras del año actual vs año anterior por mes y marca `tiene_patron = true` cuando hay compras en ambos. Integrado al contexto de oportunidades de recompra ("Este cliente también compró este producto en abril del año pasado"). El forecasting del Tab Pronóstico sigue usando promedio ponderado simple — detección estacional específica para pronóstico de demanda queda diferida a V2.
 - **Herencia de item entre SKUs.** Diferido a V2. Cuando un SKU nuevo reemplaza a uno descontinuado, heredar su historial de demanda para que el pronóstico del nuevo no arranque de cero.
 - **Lead time calculado automáticamente del historial de órdenes de compra del ERP.** Diferido a V1. Actualmente usa un valor fijo de 14 días. Con datos reales del ERP, calcular lead time promedio por proveedor/SKU desde el historial de POs.
 - **Columna de proveedor en tab Compras.** Diferido a V1. Requiere campo `proveedor_principal` poblado en tabla productos, disponible cuando se conecten ERPs reales.
@@ -136,7 +138,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 
 ## Calidad del dataset sintético
 
-- **Regenerar el seed con distribución realista de inventario antes del demo a inversionistas.** Diferido. Hoy ~97% del inventario está en stock cero porque el generador no simula reposición. Distribución target para demos creíbles: ~70% saludable, ~15% sobrestock, ~10% próximo a desabasto, ~5% desabasto crítico. El código del producto es agnóstico al volumen, así que esto es solo trabajo en `scripts/seed/`. Crítico antes del demo.
+- ~~**Regenerar el seed con distribución realista de inventario antes del demo a inversionistas.**~~ COMPLETADO — Fase 14-2. Script `scripts/seed/regenerar-inventario.ts` generó distribución 70.6/15.8/8.7/4.9 (saludable/sobrestock/próximo/crítico). POs regeneradas con ~204 ítems en desabasto (antes 1,500+).
 - **Los `margenObjetivo` y rangos de descuento en los perfiles de vendedores del seed son aspiracionales, no determinísticos.** El margen real resultante depende del mix de productos vendidos y las listas de precios de los clientes asignados. Si en el futuro queremos demos más punchy donde vendedores estrella realmente destaquen con 28%+ de margen, hay que implementar lógica en el generador de transacciones que ajuste activamente la selección de productos/clientes para cada vendedor según su perfil objetivo. Estimación: 2-3 horas.
 - **Columna `cantidad_clientes_similares` en `oportunidades_cross_sell_cache` está tipada como `text` cuando debería ser `integer`.** Deuda técnica preexistente, no afecta funcionalidad pero debería corregirse cuando se toque la generación del cache.
 
@@ -145,6 +147,34 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Agregaciones siempre en Postgres, nunca en JavaScript.** Supabase tiene un límite default de 1000 filas por query con `.select()`. Traer filas individuales al cliente para agregarlas en JS produce datos silenciosamente incorrectos (solo se agregan las primeras 1000 filas sin warning). Todas las queries analíticas deben implementarse como RPC functions de Postgres y llamarse con `supabase.rpc()`. Esto aplica a todas las queries actuales y futuras del dashboard.
 - **Todo texto dinámico del dashboard (especialmente el que interpola números) debe pasar por `src/lib/textos/`.** Nunca usar `${n} palabras` directamente en JSX — usar `pluralizar()` o una función específica del callout. Esto previene bugs de concordancia gramatical en español (1 cliente vs 2 clientes, está vs están, etc.).
 - **Filtros y JOINs entre tablas relacionales usar siempre llaves enteras, nunca texto.** JOINs por texto son frágiles ante homónimos, errores ortográficos, y son lentos. Si una tabla denormaliza un nombre por conveniencia de display, bien — pero los filtros funcionales siempre por id.
+
+## Deuda técnica para integración con ERP (documentada en Fase 12)
+
+Estos puntos no afectan el V0 pero van a requerir refactor cuando se conecte un ERP real. Documentados para que no sean sorpresa.
+
+### Alta prioridad (refactor real en V1)
+
+- **Vendedor principal de cliente es calculado, no asignado.** Hoy se deriva contando quién le ha vendido más al cliente (CTE `vendedor_rank` con `ROW_NUMBER() OVER (ORDER BY SUM(subtotal) DESC)`). Se repite en `get_clientes_en_riesgo`, `get_lista_oportunidades`, `get_clientes_lista`, y `get_oportunidades_recompra`. En un ERP real, el vendedor principal es un campo asignado en la ficha del cliente. **Fix V1:** agregar columna `vendedor_id` a tabla `clientes`, poblarla desde el ERP, y reemplazar todos los CTEs de `vendedor_rank` por un JOIN directo. Estimar ~8 RPCs afectadas.
+
+- **No existe tabla de proveedores.** `productos.proveedor_principal` es texto libre, no FK. En un ERP, cada producto tiene proveedor primario (y a veces secundarios) como entidad separada. Esto afecta especialmente al módulo de Compras: las POs sugeridas deberían agruparse por proveedor (así se envía una sola orden), no solo por bodega. **Fix V1:** crear tabla `proveedores`, agregar `proveedor_id` FK en productos, modificar `generar_pos_sugeridas` para agrupar por (proveedor, bodega), y agregar "Proveedores" como dimensión del Explorer.
+
+- **Umbrales de negocio hardcodeados en SQL.** Valores que deberían ser configurables por empresa: días de cobertura mínima (21), máxima (60), ventana de demanda (90 días), safety stock (7 días), declive de cliente (≥50%), inactividad (>60 días), alerta de margen (>3pp), ABC (20%/50%). **Fix V1:** crear tabla `configuracion_empresa` tipo key-value o columnas tipadas, y que las RPCs lean de ahí en lugar de constantes. Refactor mecánico pero toca ~15 RPCs.
+
+### Media prioridad (refactor menor en V1)
+
+- **Categorías como texto plano.** `productos.categoria` es un string, no FK a tabla de categorías. En ERPs como SAP B1, las categorías son jerárquicas (ItemGroups con niveles). **Fix V1:** crear tabla `categorias` con `id`, `nombre`, `padre_id` para jerarquía. Impacto bajo en lógica de negocio (alertas de margen, ABC) porque solo cambia el GROUP BY. Impacto medio en Explorer si se quiere drill-down por subcategoría.
+
+- **`inventario` usa `sku` (text) como referencia al producto, no `producto_id` (integer).** Inconsistente con `clientes` y `vendedores` que usan IDs enteros. Si un ERP usa IDs internos distintos al SKU visible, necesitaríamos `producto_id` FK. **Fix V1:** agregar `producto_id` integer FK, mantener `sku` para display. Refactor en RPCs que hacen JOIN por `sku`.
+
+- **Sin unidad de medida (UOM) visible en la UI.** `productos.unidad_medida` existe en la tabla pero no se muestra en ninguna pantalla. En un ERP real, las cantidades siempre van acompañadas de su unidad (piezas, cajas, metros, kg). Recurrency muestra UOM en forecasting y POs. **Fix V1:** mostrar UOM en tablas de pronóstico, planeación, compras, y líneas de PO/cotización. Cambio puramente de UI, no de modelo.
+
+### Baja prioridad (decisiones de diseño correctas)
+
+- **`subcategoria` y `marca` existen en `productos` pero no se usan en dashboard.** Ambos campos están poblados en el seed y disponibles en ERPs. Oportunidad para el Explorer: agregar como dimensiones de análisis. No es deuda técnica sino funcionalidad por habilitar.
+
+- **Sin campos fiscales en transacciones (IVA, forma de pago, método de pago).** Decisión intencional — nunca tocar CFDI (lección de Gestionix). Cuando se conecte un ERP, estos campos existirán en origen pero nuestro modelo los ignora deliberadamente. Si en el futuro queremos analytics de formas de pago o antigüedad de cartera, se agregan entonces.
+
+- **Folio de transacciones es formato custom del seed (VTA-202504-00001).** ERPs tienen sus propios formatos de folio. Nuestras RPCs no dependen del formato del folio para nada funcional — solo es display. Se adapta trivialmente al mapear datos del ERP.
 
 ## Insights por exhibir que el V0 actual diluye
 
@@ -169,4 +199,4 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-15 (Fase 9 completada — Tracking de acciones del rep)
+**Última actualización:** 2026-04-19 (Fase 14 completada — V0 cerrado. Todas las fases (1-14) del pivot completadas. Producto listo para demos a inversionistas y primeros clientes piloto para V1.)
