@@ -200,3 +200,15 @@ Estos puntos no afectan el V0 pero van a requerir refactor cuando se conecte un 
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
 **Última actualización:** 2026-04-19 (Fase 14 completada — V0 cerrado. Todas las fases (1-14) del pivot completadas. Producto listo para demos a inversionistas y primeros clientes piloto para V1.)
+
+## Branding (V0 entregado, pendiente para V1)
+
+- Verificar disponibilidad de dominio `abastio.com` / `abastio.mx` / `abastio.ai` y comprar el mejor disponible.
+- Búsqueda de trademark en IMPI México (marcanet.impi.gob.mx) — clase 9 (software) y clase 42 (SaaS).
+- Registrar handles `@abastio` en X, LinkedIn e Instagram antes de hacerlo público.
+- Rediseño profesional del logo con diseñador (Dribbble o 99designs, ~$200-500 USD) antes de ronda o salida a múltiples clientes. El logo V0 es decente para demos pero no es diferenciador suficiente para brand maduro.
+- Finalizar tagline oficial. Actual provisional: "Inteligencia operativa sobre tu ERP".
+- Brand guidelines completo (tipografía, paleta extendida, usos correctos/incorrectos del logo, espaciado mínimo).
+- Variante stacked del logo (símbolo arriba, wordmark abajo) para avatars cuadrados en redes sociales y presentaciones.
+- Configurar env var `NEXT_PUBLIC_SITE_URL` en Vercel cuando el dominio esté confirmado, y refactorizar `metadataBase` en `src/app/layout.tsx` para leerlo.
+- Renombrar el repo de GitHub de `ferreteria-mvp` a `abastio` (requiere acción manual en GitHub y actualizar el remote local con `git remote set-url origin ...`).

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Abastio - Inteligencia operativa sobre tu ERP">
+  <title>Abastio</title>
+  <desc>Imagen de OpenGraph para Abastio. Logo grande y tagline sobre fondo oscuro.</desc>
+  <style>
+    .wm{font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:140px;font-weight:700;fill:#ffffff;letter-spacing:-0.04em;text-anchor:middle}
+    .tag{font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:32px;font-weight:400;fill:#94a3b8;letter-spacing:0.01em;text-anchor:middle}
+    .brand{font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:20px;font-weight:500;fill:#475569;letter-spacing:0.15em;text-anchor:middle}
+  </style>
+
+  <rect width="1200" height="630" fill="#0f1419"/>
+
+  <g transform="translate(520, 115)">
+    <polyline points="16,136 48,144 84,96 108,112 136,56" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="136" cy="56" r="14" fill="none" stroke="#f59e0b" stroke-width="3" opacity="0.4"/>
+    <circle cx="136" cy="56" r="8.5" fill="#f59e0b"/>
+  </g>
+
+  <text x="600" y="420" class="wm">abastio</text>
+
+  <text x="600" y="490" class="tag">Inteligencia operativa sobre tu ERP</text>
+
+  <text x="600" y="570" class="brand">MAYORISTAS Y DISTRIBUIDORES DE MEXICO</text>
+</svg>

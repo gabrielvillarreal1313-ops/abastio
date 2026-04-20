@@ -9,7 +9,7 @@ export default async function Home() {
     <div className="min-h-screen bg-gray-50 p-8 font-[family-name:var(--font-geist-sans)]">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Ferretería MVP — Test de Conexión
+          Abastio — Test de Conexión
         </h1>
 
         {error ? (

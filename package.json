@@ -1,7 +1,8 @@
 {
-  "name": "ferreteria-mvp",
+  "name": "abastio",
   "version": "0.1.0",
   "private": true,
+  "description": "Inteligencia operativa sobre tu ERP para mayoristas y distribuidores mexicanos.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

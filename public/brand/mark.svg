@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-label="Abastio">
+  <title>Abastio</title>
+  <desc>Simbolo de Abastio: sparkline ascendente con halo en el punto final. Color ambar.</desc>
+  <polyline points="4,34 12,36 21,24 27,28 34,14" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="34" cy="14" r="3.5" fill="none" stroke="#f59e0b" stroke-width="0.8" opacity="0.4"/>
+  <circle cx="34" cy="14" r="2.2" fill="#f59e0b"/>
+</svg>

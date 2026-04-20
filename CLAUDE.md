@@ -6,9 +6,9 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 
 ## Proyecto
 
-**Ferretería MVP** — Dashboard de business intelligence para mayoristas mexicanos. Capa de IA sobre ERPs existentes (SAP Business One, CONTPAQi, Aspel) que convierte datos transaccionales en insights accionables.
+**Abastio** — Capa de inteligencia operativa sobre ERPs mexicanos (SAP Business One, CONTPAQi, Aspel) para mayoristas y distribuidores. Convierte datos transaccionales en insights accionables: margen en erosión, clientes en riesgo, vendedores con descuentos excesivos, inventario sin movimiento.
 
-**Empresa ficticia para el V0:** Ferretera del Bajío, S.A. de C.V. (León, Guanajuato + bodega en Querétaro). 750 SKUs, 110 clientes, 7 vendedores, ~$255M MXN/año de ingresos.
+**Tenant activo en V0 (single-tenant):** Ferretera del Bajío, S.A. de C.V. (León, Guanajuato + bodega en Querétaro). 750 SKUs, 110 clientes, 7 vendedores, ~$255M MXN/año de ingresos. Ver `src/config/tenant.ts`.
 
 **Objetivo del V0:** Dashboard funcional con datos sintéticos que demuestre el valor del producto a inversionistas y primeros clientes potenciales. No es un prototipo — es código de producción con datos simulados.
 
@@ -273,6 +273,8 @@ Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tiene
 30. **Contraste mínimo de texto: `text-gray-500` para texto informativo, `text-gray-600` para datos de tabla.** NO usar `text-gray-300` ni `text-gray-400` para texto que el usuario necesita leer (SKUs, valores en tablas, mensajes de estado vacío, porcentajes neutros). `text-gray-400` se reserva exclusivamente para placeholders de inputs y texto decorativo que no transmite información. Los grises más claros (`gray-300`, `gray-200`, `gray-100`, `gray-50`) son para bordes, fondos y dividers, nunca para texto. Para estados deshabilitados en controles interactivos, usar `disabled:text-gray-500`.
 
 31. **Deuda técnica de integración ERP documentada en BACKLOG.md.** Antes de crear tablas nuevas o RPCs que dependan de relaciones entre entidades (vendedor↔cliente, proveedor↔producto, categoría jerárquica), verificar la sección "Deuda técnica para integración con ERP" del BACKLOG. El V0 usa simplificaciones (vendedor calculado, proveedor como texto, categorías planas) que funcionan con datos sintéticos pero requieren refactor en V1.
+
+32. **El tenant activo vive en `src/config/tenant.ts`.** Toda referencia al nombre, ubicación o identidad de la empresa cliente actual lee de ahí vía `getTenantActivo()`. No hardcodear "Ferretera del Bajío" en JSX, copy, o textos de la app — si lo ves hardcoded, es candidato a refactor. En V1 multi-tenant, el contenido de `tenant.ts` se reemplaza por una query a la tabla `empresas` filtrando por sesión; como el resto de la app ya consume `getTenantActivo()`, el refactor no toca componentes.
 
 ## Estructura del proyecto
 

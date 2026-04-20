@@ -1,4 +1,4 @@
-# Contexto del Proyecto — Ferretería MVP
+# Contexto del Proyecto — Abastio
 
 Este documento contiene el contexto completo del proyecto para usar en conversaciones con Claude en claude.ai. Pégalo al inicio de un chat nuevo para arrancar con contexto completo.
 
@@ -30,7 +30,7 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 - **Última actividad:** Fase 14 completa — identidad visual "Ámbar equilibrado", seed de inventario realista, loading skeletons en todas las rutas, audit de contraste y consistencia, toast unificado con sonner, fix de aterrizaje del dueño y sidebar de highlight único, verificación e2e de los 3 flujos
 - **Siguiente:** V0 completo. Siguiente milestone: preparar deck de demo e identificar primer cliente piloto para V1 (integración ERP real)
 - **Stack:** Next.js 14 + TypeScript + Tailwind + IBM Plex Sans + Supabase + Vercel + Recharts + sonner
-- **Repo:** GitHub privado `ferreteria-mvp`
+- **Repo:** GitHub privado `abastio` (rename pendiente — ver BACKLOG)
 - **Deploy:** Vercel con auto-deploy desde main
 - **Rutas:** 23 páginas totales, **21 bajo `/dashboard/*` todas con `loading.tsx`** (login, resumen, explorer, reportes, tablero-ventas + mi-actividad-rep + mi-desempeno-rep, tablero-compras, compras/inventario + mi-actividad + mi-desempeno + PO detalle + mi-historial redirect, clientes + detalle, productos + detalle, vendedores + detalle, oportunidades + detalle + nueva)
 - **RPCs:** 80+ funciones de Postgres (agregaciones, CRUD, búsqueda typo-tolerant, POs sugeridas, tracking comprador + rep, overrides, cadencia/estacionalidad/contexto de oportunidades, Explorer multidimensional, CRUD de reportes guardados)
@@ -419,8 +419,8 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 1. **Chat nuevo en claude.ai:** Pega este documento completo al inicio del primer mensaje. Después de pegarlo, escribe tu pregunta o tarea específica.
 
-2. **Continuación de trabajo técnico:** Si vas a pedirle a Claude que escriba código, especifica que el repo se llama `ferreteria-mvp`, usa Next.js 14 App Router, y las reglas arquitectónicas del proyecto (agregaciones en Postgres, textos vía módulo centralizado, TypeScript estricto, comentarios en español).
+2. **Continuación de trabajo técnico:** Si vas a pedirle a Claude que escriba código, especifica que el proyecto se llama `abastio`, usa Next.js 14 App Router, y las reglas arquitectónicas del proyecto (agregaciones en Postgres, textos vía módulo centralizado, TypeScript estricto, comentarios en español).
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-19 (Fase 14 completada — V0 cerrado. Identidad visual "Ámbar equilibrado", seed de inventario realista, loading skeletons en las 21 rutas, audit de contraste y consistencia, toast unificado con sonner, fixes de aterrizaje y sidebar, verificación e2e de los 3 flujos. Producto listo para demo.)
+**Última actualización:** 2026-04-20 (rebrand a Abastio: metadata, logo en sidebar, rename del proyecto).
