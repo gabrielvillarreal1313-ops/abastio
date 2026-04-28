@@ -3,9 +3,14 @@
 /**
  * SidebarNav — Navegación del sidebar con secciones colapsables.
  *
- * Estructura: Resumen (link directo) + Compras (grupo) + Ventas (grupo).
- * Los grupos se expanden/colapsan. El grupo que contiene la página actual
- * se abre por defecto.
+ * Estructura para dueño:    Resumen + Explorer + Reportes (links directos) +
+ *                            Compras + Ventas (grupos).
+ * Estructura para comprador: Compras + Análisis (Explorer + Reportes).
+ * Estructura para rep:       Ventas + Análisis (Explorer + Reportes).
+ *
+ * El grupo "Análisis" se oculta para usuarios con rol dueño porque ya tienen
+ * Explorer y Reportes al nivel raíz — evita duplicación en multi-rol
+ * {dueño, comprador} o {dueño, rep}.
  */
 
 import { useState } from 'react';
@@ -72,6 +77,18 @@ const GRUPOS: NavGroup[] = [
       { label: 'Oportunidades', href: '/dashboard/oportunidades', roles: ['rep', 'dueno'] },
       { label: 'Mi actividad', href: '/dashboard/tablero-ventas/mi-actividad', roles: ['rep'] },
       { label: 'Mi desempeño', href: '/dashboard/tablero-ventas/mi-desempeno', roles: ['rep'] },
+    ],
+  },
+  {
+    label: 'Análisis',
+    // Solo aparece si NO tiene rol dueño (los dueños ven Explorer/Reportes
+    // al nivel raíz). Para rep-puro y comprador-puro este grupo es la entrada
+    // a las herramientas analíticas.
+    roles: ['comprador', 'rep'],
+    prefixes: ['/dashboard/explorer', '/dashboard/reportes'],
+    items: [
+      { label: 'Explorer', href: '/dashboard/explorer', roles: ['comprador', 'rep'] },
+      { label: 'Reportes', href: '/dashboard/reportes', roles: ['comprador', 'rep'] },
     ],
   },
 ];
@@ -183,6 +200,10 @@ export function SidebarNav({ rolesUsuario }: Props) {
       {/* Grupos colapsables */}
       {GRUPOS.map((grupo, idx) => {
         if (!tieneRol(grupo.roles)) return null;
+
+        // El grupo "Análisis" se oculta para usuarios con rol dueño porque
+        // ya tienen Explorer y Reportes al nivel raíz — evita duplicación.
+        if (grupo.label === 'Análisis' && rolesUsuario.includes('dueno')) return null;
 
         const itemsVisibles = grupo.items.filter((item) => tieneRol(item.roles));
         if (itemsVisibles.length === 0) return null;

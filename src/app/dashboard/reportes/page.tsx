@@ -1,8 +1,8 @@
 /**
  * /dashboard/reportes — Lista de reportes guardados del usuario.
  *
- * Fase 13-2: Gestión de reportes guardados desde el Explorer. Solo visible
- * para rol `dueno` por ahora; los demás roles no crean reportes en V0.
+ * Fase 16: accesible para los 3 roles. Cada usuario ve solo sus propios
+ * reportes (la RPC `get_reportes_usuario` ya filtra por `usuario_id`).
  */
 
 import { redirect } from 'next/navigation';
@@ -16,7 +16,6 @@ export const dynamic = 'force-dynamic';
 export default async function ReportesPage() {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect('/login');
-  if (!usuario.roles.includes('dueno')) redirect('/dashboard');
 
   const reportes = await getReportesUsuario(usuario.id);
 

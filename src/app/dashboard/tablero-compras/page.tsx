@@ -12,6 +12,9 @@
  */
 
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
+import { vendedorIdParaFiltrado } from '@/lib/auth/roles';
+import { getReportesAncladosConDatos } from '@/lib/queries/reportes-anclados-con-datos';
+import { ReportesAnclados } from '@/components/dashboard/ReportesAnclados';
 import { getItemsDesabastoCritico } from '@/lib/queries/items-desabasto-critico';
 import { getItemsProximosDesabasto } from '@/lib/queries/items-proximos-desabasto';
 import { getKpisComprador } from '@/lib/queries/kpis-comprador';
@@ -62,6 +65,13 @@ export default async function TableroComprasPage() {
   const rolesUsuario = usuario?.roles ?? [];
   const puedeGenerar = rolesUsuario.includes('comprador') || rolesUsuario.includes('dueno');
 
+  // Reportes anclados del usuario (Fase 16). Comprador no es rep puro →
+  // vendedorIdFiltro = null. Si el usuario tiene 0 anclados, la sección
+  // simplemente no aparece (lógica del componente).
+  const reportesAnclados = usuario
+    ? await getReportesAncladosConDatos(usuario.id, vendedorIdParaFiltrado(usuario))
+    : [];
+
   return (
     <>
       <ToastListener />
@@ -79,6 +89,12 @@ export default async function TableroComprasPage() {
       {kpis && <KPIsCompradorCards kpis={kpis} />}
 
       <SeccionPOsSugeridas pos={posPendientes} usuarioId={usuario?.id ?? null} />
+
+      {reportesAnclados.length > 0 && (
+        <div className="mt-10">
+          <ReportesAnclados reportes={reportesAnclados} />
+        </div>
+      )}
 
       <SeccionDesabastoCritico items={desabastoCritico} />
 

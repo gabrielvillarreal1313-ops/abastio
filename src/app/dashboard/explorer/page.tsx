@@ -1,16 +1,14 @@
 /**
  * /dashboard/explorer — Vista multidimensional de datos.
  *
- * Fase 12-2: Página del Explorer. Solo accesible para rol `dueno` — los reps y
- * compradores tienen sus propios módulos operativos. Se cargan los datos
- * iniciales con la dimensión default (bodegas) en el Server Component.
- *
- * Fase 13-2: Carga también los reportes guardados del usuario para permitir
- * abrir un reporte vía `?reporte=<uuid>` y para el modal de "Guardar como".
+ * Fase 16: accesible para los 3 roles. Cuando el usuario es rep puro,
+ * `getExplorer` recibe su `vendedor_id` y los datos llegan ya filtrados
+ * (regla 18 de CLAUDE.md). Dueño y comprador ven todo.
  */
 
 import { redirect } from 'next/navigation';
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
+import { vendedorIdParaFiltrado } from '@/lib/auth/roles';
 import { getExplorer } from '@/lib/queries/explorer';
 import { getReportesUsuario } from '@/lib/queries/reportes-guardados';
 import { ExplorerView } from '@/components/dashboard/explorer/ExplorerView';
@@ -20,10 +18,11 @@ export const dynamic = 'force-dynamic';
 export default async function ExplorerPage() {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect('/login');
-  if (!usuario.roles.includes('dueno')) redirect('/dashboard');
+
+  const vendedorIdFiltro = vendedorIdParaFiltrado(usuario);
 
   const [datosIniciales, reportes] = await Promise.all([
-    getExplorer('bodegas'),
+    getExplorer('bodegas', {}, vendedorIdFiltro),
     getReportesUsuario(usuario.id),
   ]);
 
@@ -41,6 +40,7 @@ export default async function ExplorerPage() {
         dimensionInicial="bodegas"
         usuarioId={usuario.id}
         reportes={reportes}
+        vendedorIdFiltro={vendedorIdFiltro}
       />
     </div>
   );

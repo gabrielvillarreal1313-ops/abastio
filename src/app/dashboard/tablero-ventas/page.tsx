@@ -5,6 +5,9 @@
 
 import { redirect } from 'next/navigation';
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
+import { vendedorIdParaFiltrado } from '@/lib/auth/roles';
+import { getReportesAncladosConDatos } from '@/lib/queries/reportes-anclados-con-datos';
+import { ReportesAnclados } from '@/components/dashboard/ReportesAnclados';
 import { getKpisRepMes } from '@/lib/queries/kpis-rep-mes';
 import { getListaOportunidades } from '@/lib/queries/oportunidades-lista';
 import { getOportunidadesTableroRep } from '@/lib/queries/oportunidades-tablero-rep';
@@ -29,13 +32,16 @@ export default async function TableroVentasPage() {
   const esRepPuro = usuario!.roles.length === 1 && usuario!.roles[0] === 'rep';
   const vendedorId = esRepPuro ? usuario!.vendedorId : null;
 
-  const [kpis, oportunidades, resumenOportunidades, clientesEnRiesgoData, cotizaciones] = await Promise.all([
+  const [kpis, oportunidades, resumenOportunidades, clientesEnRiesgoData, cotizaciones, reportesAnclados] = await Promise.all([
     vendedorId ? getKpisRepMes(vendedorId) : null,
     // Rep puro: usa tablero filtrado (excluye trabajadas). Dueño: ve todo
     vendedorId ? getOportunidadesTableroRep(vendedorId) : getListaOportunidades(null),
     vendedorId ? getResumenOportunidadesRep(vendedorId) : null,
     getClientesEnRiesgo(vendedorId ?? undefined),
     getCotizacionesLista(vendedorId ?? undefined),
+    // Fase 16: reportes anclados del rep, con `getExplorer` ya filtrado
+    // por su vendedor_id cuando aplica regla 18.
+    getReportesAncladosConDatos(usuario!.id, vendedorIdParaFiltrado(usuario!)),
   ]);
 
   return (
@@ -50,6 +56,9 @@ export default async function TableroVentasPage() {
         nombreUsuario={usuario!.nombre}
         vendedorId={vendedorId}
         esRepPuro={esRepPuro}
+        slotReportesAnclados={
+          reportesAnclados.length > 0 ? <ReportesAnclados reportes={reportesAnclados} /> : null
+        }
       />
     </>
   );

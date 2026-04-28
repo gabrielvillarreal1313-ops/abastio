@@ -50,3 +50,22 @@ export function paginaAterrizajePorRol(rol: Rol): string {
     case 'rep': return '/dashboard/tablero-ventas';
   }
 }
+
+/**
+ * "Rep puro" = usuario con un único rol y ese rol es 'rep'. Multi-rol
+ * (incluso si incluye 'rep') NO es rep puro porque tiene perspectiva de
+ * empresa heredada del otro rol. Esta es la regla 18 del CLAUDE.md.
+ */
+export function esRepPuro(roles: Rol[]): boolean {
+  return roles.length === 1 && roles[0] === 'rep';
+}
+
+/**
+ * Retorna el `vendedor_id` del usuario solo cuando es rep puro. En cualquier
+ * otro caso retorna null. Pasar este valor a las RPCs que aplican filtrado
+ * por vendedor (regla 18) garantiza el comportamiento correcto en una sola
+ * línea sin que el caller tenga que recordar la lógica.
+ */
+export function vendedorIdParaFiltrado(usuario: UsuarioActual): number | null {
+  return esRepPuro(usuario.roles) ? usuario.vendedorId : null;
+}

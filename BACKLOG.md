@@ -14,6 +14,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Row-level security (RLS) multi-tenant.** Diferido a V1. Actualmente la DB es single-tenant (una sola "empresa" = Ferretera del Bajío). Para servir múltiples clientes reales, agregar columna `empresa_id` a todas las tablas y políticas RLS. Estimación: 8-12 horas más refactor de queries.
 - **Manejo de roles y permisos** (dueño vs vendedor vs contador). Diferido a V2. Por ahora cualquier usuario autenticado ve todo.
 - **Asignación de compradores a bodegas específicas.** Diferido. El modelo de datos contempla esta posibilidad pero el filtro "Solo mis bodegas" que aparecerá en el módulo Compras será un placeholder hasta tener datos reales o decisión de producto. No requiere tabla nueva todavía.
+- **Configuración por tenant: "permitir a reps ver datos de otros reps".** Diferido a V1 cuando se construya la tabla `configuracion_empresa`. Decisión de producto: en V0, el rep solo ve sus propios datos en Explorer (consistente con regla 18 y con cultura de empresas mexicanas familiares donde la transparencia entre vendedores no es la norma). En V1, esta será la primera setting de `configuracion_empresa`, junto con los umbrales hardcodeados ya documentados como deuda. El default propuesto para V1 es `false` (restrictivo), con opción de activar para empresas con cultura más transparente. Esta decisión está cableada hoy en `get_explorer(p_vendedor_id)` y en la lógica de UI que pasa el vendedor cuando aplica regla 18.
 
 ## Integraciones con ERPs
 
@@ -63,6 +64,16 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Auto-guardado de cotizaciones en DB (no solo localStorage).** Diferido a V2. Actualmente el auto-guardado del wizard usa localStorage del navegador, lo que no sincroniza entre dispositivos. Para V2, guardar borradores automáticamente en Supabase para que un vendedor pueda empezar una cotización en desktop y continuarla en tablet.
 - ~~**Aplicación del filtro `p_vendedor_id` en RPCs adicionales (productos, kpis, ingresos mensuales, etc.) cuando el usuario es rep puro.**~~ DESCARTADO — Fase 7. Evaluado y decidido que no aporta valor: Productos debe mostrar todo el catálogo para habilitar cross-sell, Resumen Ejecutivo da contexto de empresa útil, y la visibilidad de otras páginas se controla vía sidebar (no vía filtrado de RPCs). El filtrado operativo relevante (oportunidades, clientes en riesgo, cotizaciones) ya está implementado.
 - **Persistencia server-side de la "vista activa" del selector multi-rol.** Actualmente vive en `localStorage`, lo que no sincroniza entre dispositivos. Diferido a V1+ cuando haya usuarios reales que usen multi-dispositivo.
+
+### Visualizaciones del Explorer (diferidas a V2)
+
+- **Barras apiladas (YTD vs LYTD).** Diferido a V2. Caso de uso: dueño quiere ver tamaño total acumulado año contra año en una sola lectura. Reconsiderar cuando un cliente real pida esta vista. Razón del diferimiento: barras agrupadas ya muestran el comparativo claramente, y la diferencia visual con apiladas es sutil para el usuario promedio.
+- **Combo charts (barras + línea en un solo gráfico).** Diferido a V2. Caso de uso: comparar dos métricas de magnitud distinta en el mismo eje (ej. ingresos en barras, margen % en línea). Razón del diferimiento: UX compleja, requiere familiaridad con dashboards avanzados.
+- **Cruce de dos dimensiones simultáneas en Explorer.** Diferido a V2+. Caso de uso: ver ventas por bodega segmentadas por categoría (matriz). Razón del diferimiento: requiere refactor mayor de la RPC `get_explorer` para retornar resultados pivoteados por dos dimensiones a la vez. El Explorer actual y stacked bars de una sola dimensión cubren los casos de uso comunes.
+- **UI de edición de reportes guardados (renombrar, cambiar descripción, cambiar anclaje sin pasar por sobreescribir).** La RPC `actualizarReporte` ya existe y soporta patch parcial. Falta una UI dedicada para editar metadata sin tener que abrir el reporte en Explorer y sobreescribirlo. Diferido a V1.
+- **Performance hint en Explorer con Top 100 + comparativo.** Cambio de métrica con 200 barras toma ~284ms en máquina de desarrollo (target era ≤200ms). Aceptable en uso normal (Top 15 promedio es instantáneo). Si feedback real reporta lag, optimizar con `useMemo` en data array, `useCallback` en tickFormatter, o evaluar virtualización con `react-window`. Diferido a V1 con datos de uso real.
+- **Consolidar `parseGrafica` y `sanearConfiguracionGrafica`.** Hoy son dos capas con overlap parcial: el parser de `src/lib/queries/reportes-guardados.ts` valida campos individuales en deserialización, y `sanearConfiguracionGrafica` en `src/lib/explorer/reglas-grafica.ts` valida combinaciones a nivel consumo. Funciona correctamente, pero duplica un poco la responsabilidad. Refactor mecánico de bajo riesgo. Diferido a V1.
+- **Extraer helpers compartidos de gráficas a `grafica-utils.ts`.** Hoy `GraficaExplorer.tsx` y `GraficaCompacta.tsx` duplican inline los helpers `obtenerValorFila`, `formatearValor`, `formatearEje`, `metricaComparativa`, `ordenarCronologicamente`, `aplicarTopN`, y la constante `PALETA_DONUT`. Refactor mecánico de bajo riesgo, no urgente. La duplicación está documentada con comentario inline en `GraficaCompacta.tsx`. Diferido a V1.
 
 ## Alertas de margen
 
@@ -122,6 +133,7 @@ Este archivo documenta decisiones explícitas de dejar cosas fuera del V0 para m
 - **Testing automatizado** (unit + integration). Diferido a V1 cuando el producto sea más estable.
 - **Observability y monitoring** (Sentry, analytics de uso). Diferido a V1.
 - **CI/CD más sofisticado.** Actualmente usamos auto-deploy de Vercel que es suficiente. GitHub Actions con tests y staging environment diferido a V2.
+- **Paginación server-side en `get_explorer`.** Diferido a V1+. Hoy la RPC retorna hasta 5,000 filas, suficiente para el segmento target ($85M-$850M MXN, ~500-3,000 SKUs típicos). Cuando aparezca un cliente real con catálogo de 10,000+ SKUs activos, implementar paginación con `p_offset`, `p_limit`, total count separado, sort server-side, y refactor de UI del Explorer (paginación numerada vs scroll infinito vs cargar más, decisión de UX dependiente de feedback). El cap actual de 5,000 es una salvaguarda; eliminar antes de implementar paginación causa que la UI cargue muy lento sin paginación apropiada.
 
 ## Datos y analytics
 
@@ -199,7 +211,7 @@ Estos puntos no afectan el V0 pero van a requerir refactor cuando se conecte un 
 - **Al planear un sprint:** revisar este archivo antes que cualquier idea nueva.
 - **Revisión completa:** cada vez que cerramos una versión (V0 → V1, V1 → V2, etc.).
 
-**Última actualización:** 2026-04-19 (Fase 14 completada — V0 cerrado. Todas las fases (1-14) del pivot completadas. Producto listo para demos a inversionistas y primeros clientes piloto para V1.)
+**Última actualización:** 2026-04-28 (Fases 15 y 16 completadas — vista gráfica configurable en Explorer con 5 tipos, persistencia en reportes guardados, modal sobreescribir/nuevo, apertura del Explorer y Reportes a comprador y rep con filtrado por vendedor para reps puros. V0 extendido cerrado, listo para demos. Siguiente milestone: refactor de deuda técnica pre-ERP — proveedores como tabla, vendedor_id en clientes, configuracion_empresa.)
 
 ## Branding (V0 entregado, pendiente para V1)
 

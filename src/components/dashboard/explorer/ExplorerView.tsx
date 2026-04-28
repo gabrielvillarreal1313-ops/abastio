@@ -10,7 +10,7 @@
  * semi-transparente mientras carga).
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import {
@@ -20,16 +20,27 @@ import {
   type FiltrosExplorer,
 } from '@/lib/queries/explorer';
 import {
+  actualizarReporte,
   guardarReporte,
   toggleAnclaReporte,
   type ReporteGuardado,
   type ConfiguracionReporte,
+  type ConfiguracionGrafica,
+  type VistaReporte,
 } from '@/lib/queries/reportes-guardados';
+import {
+  generarConfiguracionDefault,
+  reconciliarConfiguracion,
+  sanearConfiguracionGrafica,
+} from '@/lib/explorer/reglas-grafica';
 import { formatMXNTabla } from '@/lib/textos/formato';
 import { ClienteLink } from '@/components/ui/ClienteLink';
 import { ProductoLink } from '@/components/ui/ProductoLink';
 import { VendedorLink } from '@/components/ui/VendedorLink';
 import { useToastFromUrl } from '@/hooks/useToastFromUrl';
+import { ToggleVistaExplorer } from './ToggleVistaExplorer';
+import { GraficaExplorer } from './GraficaExplorer';
+import { BarraConfigGrafica } from './BarraConfigGrafica';
 
 // ─── Configuración de dimensiones ───────────────────────────────────────────
 
@@ -101,11 +112,17 @@ interface Props {
   dimensionInicial: DimensionExplorer;
   usuarioId: string;
   reportes: ReporteGuardado[];
+  /**
+   * vendedor_id que se pasa a `getExplorer` cuando el usuario es rep puro.
+   * null para dueño/comprador/multi-rol — la RPC no filtra. Determinado en
+   * el Server Component vía `vendedorIdParaFiltrado(usuario)`.
+   */
+  vendedorIdFiltro: number | null;
 }
 
 // ─── Componente ─────────────────────────────────────────────────────────────
 
-export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, reportes }: Props) {
+export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, reportes, vendedorIdFiltro }: Props) {
   useToastFromUrl();
   const searchParams = useSearchParams();
   const reporteIdParam = searchParams.get('reporte');
@@ -144,6 +161,53 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Vista actual: tabla (default) o gráfica. Cambiar de vista NO dispara
+  // re-fetch — los datos ya están en `filas`. Si hay reporte cargado con
+  // vista guardada, se respeta esa vista al inicializar.
+  const [vista, setVista] = useState<VistaReporte>(
+    reporteActivo?.configuracion.vista ?? 'tabla'
+  );
+
+  // Configuración de la gráfica. Si el reporte cargado tiene una grafica
+  // persistida, se restaura tal cual (saneada contra reglas por si el JSONB
+  // está malformado). Si no hay reporte, se generan defaults derivados de la
+  // dimensión y sort iniciales. Se reconcilia automáticamente cuando cambia
+  // la dimensión (ver `cambiarDimension` y `aplicarFiltroDesdeFila`).
+  const [configuracionGrafica, setConfiguracionGrafica] = useState<ConfiguracionGrafica>(() => {
+    const dim = reporteActivo?.configuracion.dimension ?? dimensionInicial;
+    const sortCol = reporteActivo?.configuracion.sort_column ?? 'ventas_ytd';
+    const guardada = reporteActivo?.configuracion.grafica;
+    if (!guardada) {
+      return generarConfiguracionDefault(dim, sortCol);
+    }
+    const saneada = sanearConfiguracionGrafica(guardada, dim);
+    if (saneada !== guardada) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[Explorer] Configuración de gráfica saneada al cargar reporte:',
+        { original: guardada, saneada }
+      );
+    }
+    return saneada;
+  });
+
+  // Snapshot del estado al cargar un reporte, para detectar "cambios sin
+  // guardar" comparando contra el estado actual. JSON.stringify es suficiente
+  // para los JSONBs pequeños del Explorer (filtros + grafica son objetos
+  // planos sin referencias circulares).
+  const reporteCargadoSnapshotRef = useRef<string | null>(
+    reporteActivo
+      ? snapshotConfig({
+          dimension: reporteActivo.configuracion.dimension,
+          filtros: reporteActivo.configuracion.filtros ?? {},
+          sort_column: reporteActivo.configuracion.sort_column ?? 'ventas_ytd',
+          sort_direction: reporteActivo.configuracion.sort_direction ?? 'desc',
+          vista: reporteActivo.configuracion.vista ?? 'tabla',
+          grafica: reporteActivo.configuracion.grafica,
+        })
+      : null
+  );
+
   // Modal de guardar reporte
   const [modalGuardarAbierto, setModalGuardarAbierto] = useState(false);
 
@@ -167,7 +231,7 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
     setCargando(true);
     (async () => {
       try {
-        const nuevasFilas = await getExplorer(nuevaDim, nuevosFiltros);
+        const nuevasFilas = await getExplorer(nuevaDim, nuevosFiltros, vendedorIdFiltro);
         setFilas(nuevasFilas);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error cargando datos');
@@ -182,6 +246,7 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
     setDimension(nueva);
     setBusqueda('');
     setSort({ columna: 'ventas_ytd', direccion: 'desc' });
+    setConfiguracionGrafica((prev) => reconciliarConfiguracion(prev, nueva));
     recargar(nueva, filtros);
   }
 
@@ -202,6 +267,7 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
     setDimension(siguiente);
     setBusqueda('');
     setSort({ columna: 'ventas_ytd', direccion: 'desc' });
+    setConfiguracionGrafica((prev) => reconciliarConfiguracion(prev, siguiente));
     recargar(siguiente, nuevosFiltros);
   }
 
@@ -261,6 +327,24 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
 
   const dimActiva = DIMENSIONES.find((d) => d.key === dimension) ?? DIMENSIONES[0];
   const filtrosActivos = Object.keys(filtros) as (keyof FiltrosExplorer)[];
+
+  // ─── Tracking de cambios sin guardar ────────────────────────────────────
+  // Solo aplica cuando hay un reporte cargado vía ?reporte=<id>.
+  const tieneReporteCargado = reporteActivo !== null;
+  const snapshotActual = tieneReporteCargado
+    ? snapshotConfig({
+        dimension,
+        filtros,
+        sort_column: sort.columna,
+        sort_direction: sort.direccion,
+        vista,
+        grafica: vista === 'grafica' ? configuracionGrafica : undefined,
+      })
+    : null;
+  const hayCambiosSinGuardar =
+    tieneReporteCargado &&
+    reporteCargadoSnapshotRef.current !== null &&
+    snapshotActual !== reporteCargadoSnapshotRef.current;
 
   return (
     <div className="space-y-4">
@@ -328,10 +412,18 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
             <span className="text-slate-700">
               Viendo reporte: <span className="font-medium">{reporteActivo.nombre}</span>
             </span>
+            {hayCambiosSinGuardar && (
+              <span className="text-amber-600 font-medium">• Cambios sin guardar</span>
+            )}
           </div>
           <button
             onClick={() => {
-              // Limpiar el query param y recargar en estado default
+              if (
+                hayCambiosSinGuardar &&
+                !window.confirm('Tienes cambios sin guardar. ¿Descartar?')
+              ) {
+                return;
+              }
               const url = new URL(window.location.href);
               url.searchParams.delete('reporte');
               window.location.href = url.toString();
@@ -343,7 +435,7 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
         </div>
       )}
 
-      {/* ─── Controles (buscador + contador + guardar) ─────────────────── */}
+      {/* ─── Controles (buscador + toggle vista + contador + guardar) ──── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <input
@@ -353,6 +445,7 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
             placeholder={`Buscar en ${dimActiva.label.toLowerCase()}...`}
             className="px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 border border-gray-300 rounded-md w-72 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
           />
+          <ToggleVistaExplorer vista={vista} onChange={setVista} />
           <span className="text-xs text-gray-500 px-2 py-1 rounded bg-gray-100">
             Período: YTD
           </span>
@@ -385,15 +478,18 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
           filtros={filtros}
           labelsFiltros={labelsFiltros}
           sort={sort}
+          vista={vista}
+          configuracionGrafica={configuracionGrafica}
           nombreDimension={dimActiva.label}
+          reporteCargado={reporteActivo}
           onCerrar={() => setModalGuardarAbierto(false)}
         />
       )}
 
-      {/* ─── Tabla ─────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+      {/* ─── Tabla / Gráfica ───────────────────────────────────────────── */}
+      <div className="relative">
         {cargando && (
-          <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
             <svg className="w-6 h-6 animate-spin text-slate-500" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
@@ -401,45 +497,64 @@ export function ExplorerView({ datosIniciales, dimensionInicial, usuarioId, repo
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50">
-                <ColumnaHeader label="ID" col="dimension_id" sort={sort} onSort={toggleSort} align="left" />
-                <ColumnaHeader label={dimActiva.colLabel} col="dimension_label" sort={sort} onSort={toggleSort} align="left" />
-                <ColumnaHeader label="Ventas YTD" col="ventas_ytd" sort={sort} onSort={toggleSort} align="right" />
-                <ColumnaHeader label="Ventas LYTD" col="ventas_lytd" sort={sort} onSort={toggleSort} align="right" />
-                <ColumnaHeader label="Δ Ventas" col="ventas_delta" sort={sort} onSort={toggleSort} align="right" />
-                <ColumnaHeader label="Δ %" col="ventas_delta_pct" sort={sort} onSort={toggleSort} align="right" />
-                <th className="px-3 py-2.5 font-medium text-left">Tendencia</th>
-                <ColumnaHeader label="GM YTD" col="gm_ytd" sort={sort} onSort={toggleSort} align="right" />
-                <ColumnaHeader label="GM LYTD" col="gm_lytd" sort={sort} onSort={toggleSort} align="right" />
-                <ColumnaHeader label="Δ GM" col="gm_delta" sort={sort} onSort={toggleSort} align="right" />
-                <th className="px-3 py-2.5 font-medium text-right" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filasVisibles.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-6 py-10 text-center text-sm text-gray-500">
-                    {filas.length === 0
-                      ? 'Sin datos para esta combinación de dimensión y filtros.'
-                      : 'Ningún resultado coincide con la búsqueda.'}
-                  </td>
-                </tr>
-              ) : (
-                filasVisibles.map((r) => (
-                  <FilaTabla
-                    key={r.dimension_id}
-                    fila={r}
-                    dimension={dimension}
-                    onAplicar={aplicarFiltroDesdeFila}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {vista === 'tabla' && (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50">
+                    <ColumnaHeader label="ID" col="dimension_id" sort={sort} onSort={toggleSort} align="left" />
+                    <ColumnaHeader label={dimActiva.colLabel} col="dimension_label" sort={sort} onSort={toggleSort} align="left" />
+                    <ColumnaHeader label="Ventas YTD" col="ventas_ytd" sort={sort} onSort={toggleSort} align="right" />
+                    <ColumnaHeader label="Ventas LYTD" col="ventas_lytd" sort={sort} onSort={toggleSort} align="right" />
+                    <ColumnaHeader label="Δ Ventas" col="ventas_delta" sort={sort} onSort={toggleSort} align="right" />
+                    <ColumnaHeader label="Δ %" col="ventas_delta_pct" sort={sort} onSort={toggleSort} align="right" />
+                    <th className="px-3 py-2.5 font-medium text-left">Tendencia</th>
+                    <ColumnaHeader label="GM YTD" col="gm_ytd" sort={sort} onSort={toggleSort} align="right" />
+                    <ColumnaHeader label="GM LYTD" col="gm_lytd" sort={sort} onSort={toggleSort} align="right" />
+                    <ColumnaHeader label="Δ GM" col="gm_delta" sort={sort} onSort={toggleSort} align="right" />
+                    <th className="px-3 py-2.5 font-medium text-right" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filasVisibles.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="px-6 py-10 text-center text-sm text-gray-500">
+                        {filas.length === 0
+                          ? 'Sin datos para esta combinación de dimensión y filtros.'
+                          : 'Ningún resultado coincide con la búsqueda.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filasVisibles.map((r) => (
+                      <FilaTabla
+                        key={r.dimension_id}
+                        fila={r}
+                        dimension={dimension}
+                        onAplicar={aplicarFiltroDesdeFila}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {vista === 'grafica' && (
+          <div className="space-y-3">
+            <BarraConfigGrafica
+              dimension={dimension}
+              configuracion={configuracionGrafica}
+              onChange={setConfiguracionGrafica}
+            />
+            <GraficaExplorer
+              filas={filasVisibles}
+              dimension={dimension}
+              configuracion={configuracionGrafica}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -588,6 +703,30 @@ function Sparkline({ data }: { data: { mes: number; valor: number }[] }) {
   );
 }
 
+// ─── Helper: snapshot serializado para comparar config ──────────────────────
+
+interface ConfigSnapshot {
+  dimension: DimensionExplorer;
+  filtros: FiltrosExplorer;
+  sort_column: string;
+  sort_direction: 'asc' | 'desc';
+  vista: VistaReporte;
+  grafica?: ConfiguracionGrafica;
+}
+
+function snapshotConfig(c: ConfigSnapshot): string {
+  // JSON.stringify con orden fijo de llaves para que dos snapshots
+  // semánticamente iguales produzcan el mismo string.
+  return JSON.stringify({
+    dimension: c.dimension,
+    filtros: c.filtros,
+    sort_column: c.sort_column,
+    sort_direction: c.sort_direction,
+    vista: c.vista,
+    grafica: c.grafica ?? null,
+  });
+}
+
 // ─── Modal: guardar reporte ─────────────────────────────────────────────────
 
 function ModalGuardarReporte({
@@ -596,7 +735,10 @@ function ModalGuardarReporte({
   filtros,
   labelsFiltros,
   sort,
+  vista,
+  configuracionGrafica,
   nombreDimension,
+  reporteCargado,
   onCerrar,
 }: {
   usuarioId: string;
@@ -604,9 +746,15 @@ function ModalGuardarReporte({
   filtros: FiltrosExplorer;
   labelsFiltros: LabelsFiltros;
   sort: EstadoSort;
+  vista: VistaReporte;
+  configuracionGrafica: ConfiguracionGrafica;
   nombreDimension: string;
+  reporteCargado: ReporteGuardado | null;
   onCerrar: () => void;
 }) {
+  // Modo de guardado: 'sobreescribir' solo aplica si hay reporte cargado.
+  type Modo = 'sobreescribir' | 'nuevo';
+  const [modo, setModo] = useState<Modo>(reporteCargado ? 'sobreescribir' : 'nuevo');
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [anclar, setAnclar] = useState(false);
@@ -615,27 +763,52 @@ function ModalGuardarReporte({
 
   const chipsFiltros = Object.keys(filtros) as (keyof FiltrosExplorer)[];
 
+  function construirConfiguracion(): ConfiguracionReporte {
+    return {
+      dimension,
+      filtros,
+      sort_column: sort.columna,
+      sort_direction: sort.direccion,
+      vista,
+      ...(vista === 'grafica' ? { grafica: configuracionGrafica } : {}),
+    };
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorLocal(null);
+
+    if (modo === 'sobreescribir' && reporteCargado) {
+      setGuardando(true);
+      try {
+        await actualizarReporte(reporteCargado.id, usuarioId, {
+          configuracion: construirConfiguracion(),
+        });
+        // Mantener el query param ?reporte= para que al recargar el banner
+        // muestre el reporte actualizado sin "cambios sin guardar".
+        const url = new URL(window.location.href);
+        url.searchParams.set('toast', 'reporte_actualizado');
+        window.location.href = url.toString();
+      } catch (err) {
+        setErrorLocal(err instanceof Error ? err.message : 'Error actualizando reporte');
+        setGuardando(false);
+      }
+      return;
+    }
+
+    // modo === 'nuevo' (con o sin reporte cargado)
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) {
       setErrorLocal('El nombre es obligatorio');
       return;
     }
     setGuardando(true);
-    setErrorLocal(null);
     try {
-      const configuracion: ConfiguracionReporte = {
-        dimension,
-        filtros,
-        sort_column: sort.columna,
-        sort_direction: sort.direccion,
-      };
       const id = await guardarReporte(
         usuarioId,
         nombreLimpio,
         descripcion.trim() || null,
-        configuracion
+        construirConfiguracion()
       );
       if (anclar && id) {
         await toggleAnclaReporte(id, usuarioId, true);
@@ -647,6 +820,9 @@ function ModalGuardarReporte({
     }
   }
 
+  const tituloModal = reporteCargado ? 'Guardar cambios' : 'Guardar como reporte';
+  const camposNuevoVisibles = !reporteCargado || modo === 'nuevo';
+
   return (
     <div
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -657,47 +833,92 @@ function ModalGuardarReporte({
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4"
       >
-        <h3 className="text-lg font-semibold text-gray-900">Guardar como reporte</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{tituloModal}</h3>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre del reporte <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Ej: Top Clientes de Plomería"
-            autoFocus
-            className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-          />
-        </div>
+        {reporteCargado && (
+          <div className="space-y-3 border-b border-gray-100 pb-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="modo-guardar"
+                value="sobreescribir"
+                checked={modo === 'sobreescribir'}
+                onChange={() => setModo('sobreescribir')}
+                className="mt-0.5 h-4 w-4 border-gray-300 text-slate-900 focus:ring-slate-400"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">
+                  Sobreescribir &ldquo;{reporteCargado.nombre}&rdquo;
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  El reporte se actualiza con la configuración actual. El ancla y nombre se mantienen.
+                </div>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="modo-guardar"
+                value="nuevo"
+                checked={modo === 'nuevo'}
+                onChange={() => setModo('nuevo')}
+                className="mt-0.5 h-4 w-4 border-gray-300 text-slate-900 focus:ring-slate-400"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">Guardar como nuevo</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Crea un reporte nuevo. El reporte original no se modifica.
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descripción <span className="text-gray-400 font-normal">(opcional)</span>
-          </label>
-          <textarea
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Describe qué muestra este reporte"
-            rows={2}
-            className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 resize-none"
-          />
-        </div>
+        {camposNuevoVisibles && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre del reporte <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej: Top Clientes de Plomería"
+                autoFocus
+                className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+              />
+            </div>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={anclar}
-            onChange={(e) => setAnclar(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-400"
-          />
-          Anclar a mi dashboard
-        </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Describe qué muestra este reporte"
+                rows={2}
+                className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-gray-400 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 resize-none"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={anclar}
+                onChange={(e) => setAnclar(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-400"
+              />
+              Anclar a mi dashboard
+            </label>
+          </>
+        )}
 
         <div className="text-xs text-gray-500 bg-gray-50 rounded-md px-3 py-2">
           Se guardará con la dimensión <span className="font-medium text-gray-700">{nombreDimension}</span>
+          {' como '}
+          <span className="font-medium text-gray-700">{vista === 'grafica' ? 'Gráfica' : 'Tabla'}</span>
           {chipsFiltros.length > 0 && (
             <>
               {' y los filtros: '}

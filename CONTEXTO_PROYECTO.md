@@ -26,9 +26,9 @@ No hay un competidor dominante construyendo esto para el mercado mexicano. Yalo 
 
 ## Estado actual
 
-- **Fase:** **V0 completo — listo para demo**. Todas las fases (1-14) del pivot completadas
-- **Última actividad:** Fase 14 completa — identidad visual "Ámbar equilibrado", seed de inventario realista, loading skeletons en todas las rutas, audit de contraste y consistencia, toast unificado con sonner, fix de aterrizaje del dueño y sidebar de highlight único, verificación e2e de los 3 flujos
-- **Siguiente:** V0 completo. Siguiente milestone: preparar deck de demo e identificar primer cliente piloto para V1 (integración ERP real)
+- **Fase:** **V0 extendido — listo para demo**. Fases 1-14 del pivot + Fases 15 y 16 completadas
+- **Última actividad:** Fases 15 y 16 — vista gráfica configurable en Explorer con 5 tipos (barras horizontales/verticales, líneas, área, donut), 8 métricas, top N configurable, comparativo YTD/LYTD condicional. Persistencia en reportes guardados con modal sobreescribir/guardar como nuevo y tracking de cambios sin guardar. Reportes anclados respetan vista guardada en Resumen Ejecutivo, Tablero de Compras y Tablero de Ventas. Explorer y Reportes accesibles a los 3 roles con filtrado por vendedor (regla 18) para reps puros. LIMIT de get_explorer subido de 500 a 5,000 para cubrir catálogos del segmento target.
+- **Siguiente:** Refactor de deuda técnica pre-ERP (B): tabla `proveedores`, `vendedor_id` asignado en `clientes`, tabla `configuracion_empresa`, tabla `categorias` jerárquica, `inventario.producto_id` (entero) en lugar de `sku` (texto). Después: capa ERPAdapter (C) cuando aparezca cliente piloto.
 - **Stack:** Next.js 14 + TypeScript + Tailwind + IBM Plex Sans + Supabase + Vercel + Recharts + sonner
 - **Repo:** GitHub privado `abastio` (rename pendiente — ver BACKLOG)
 - **Deploy:** Vercel con auto-deploy desde main
@@ -408,9 +408,13 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 | YTD vs LYTD con deltas | Implementado | Ventas y margen con deltas absolutos + porcentuales, LYTD cortado al mismo día del año anterior (Fase 12) |
 | Sparklines por fila | Implementado | Recharts `<LineChart>` miniatura 120×30 alimentada por JSONB `sparkline_data` (Fase 12) |
 | Filtros cruzados | Implementado | Chips removibles + botón "Aplicar" que agrega filtro y salta a la siguiente dimensión natural (Fase 12) |
-| Guardar como reporte | Implementado | Modal en Explorer captura dimensión + filtros + sort como JSONB; CRUD completo vía 6 RPCs (Fase 13) |
-| Anclar al dashboard | Implementado | Toggle de ancla en lista de reportes; secciones compactas en Resumen Ejecutivo con tabla preview + link al Explorer (Fase 13) |
-| Reportes predefinidos por rol | Implementado | Seed de Top Territorios/Top Clientes/Top Productos anclados para el dueño (Fase 13) |
+| Vista de gráfica con 5 tipos | Implementado | Barras horizontales/verticales, Líneas, Área, Donut. Selectores de tipo, métrica, top N (5/10/15/25/50/Todos), comparativo YTD vs LYTD condicional. Reglas de validación encapsuladas en `reglas-grafica.ts` (Fase 15) |
+| Total al centro de Donut | Implementado | Suma de la métrica graficada + nombre legible. Cap a 25 segmentos. Paleta consistente con identidad ámbar del proyecto (Fase 15) |
+| Guardar como reporte | Implementado | Modal en Explorer captura dimensión + filtros + sort + vista + configuración de gráfica como JSONB. Modal con dos opciones (sobreescribir / guardar como nuevo) cuando hay reporte cargado (Fase 13 + 15) |
+| Anclar al dashboard | Implementado | Reportes anclados respetan vista guardada (tabla compacta o gráfica compacta de 280px). Aparecen en Resumen Ejecutivo (dueño), Tablero de Compras (comprador), Tablero de Ventas (rep) — Fase 13 + 15 + 16 |
+| Reportes predefinidos para dueño | Implementado | Seed migrado a gráfica en Fase 15: Top Territorios (barras horizontales bodegas), Top Clientes (barras horizontales 10 clientes), Top Productos (donut 15 SKUs). Comprador y rep arrancan con lista vacía por decisión de producto (Fase 16) |
+| Filtrado por rol en Explorer | Implementado | Rep puro ve solo sus filas + métricas según reglas por dimensión (`get_clientes_lista` pattern extendido a `get_explorer`). Comprador y dueño ven datos completos. Configurable por tenant en V1 vía `configuracion_empresa` (Fase 16) |
+| Tracking de cambios sin guardar | Implementado | Banner ámbar "Cambios sin guardar" cuando reporte cargado tiene modificaciones. Confirm al descartar. Snapshot inicial en `useRef` para evitar flash visual en re-renders (Fase 15) |
 | Búsqueda global (keyword) | Implementado | Ctrl+K en header |
 
 ---
@@ -423,4 +427,4 @@ Ver `BACKLOG.md` en el repo para la lista completa con horizonte tentativo (V1, 
 
 3. **Actualización:** Este documento se actualiza al final de cada semana. Si el estado cambió significativamente, re-genera desde Claude Code con el comando "actualiza CONTEXTO_PROYECTO.md con el estado actual".
 
-**Última actualización:** 2026-04-20 (rebrand a Abastio: metadata, logo en sidebar, rename del proyecto).
+**Última actualización:** 2026-04-28 (Fases 15-16 completadas — vista gráfica configurable en Explorer con persistencia, apertura del Explorer y Reportes a comprador y rep con filtrado por vendedor en reps puros, LIMIT subido a 5,000).

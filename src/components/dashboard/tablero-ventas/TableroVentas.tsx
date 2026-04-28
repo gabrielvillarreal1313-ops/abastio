@@ -50,6 +50,13 @@ interface Props {
   nombreUsuario: string;
   vendedorId: number | null;
   esRepPuro: boolean;
+  /**
+   * Slot para reportes anclados, renderizado entre KPI cards y la sección
+   * de Oportunidades. Se pasa como nodo desde el Server Component padre
+   * porque `<ReportesAnclados>` necesita ejecutar `getExplorer` (server-only)
+   * para obtener los datos de cada reporte.
+   */
+  slotReportesAnclados?: React.ReactNode;
 }
 
 // ─── Badges ─────────────────────────────────────────────────────────────────
@@ -86,6 +93,7 @@ export function TableroVentas({
   nombreUsuario,
   vendedorId,
   esRepPuro,
+  slotReportesAnclados,
 }: Props) {
   const mesFormateado = kpis ? formatearMesAnio(kpis.mes_actual) : '';
   const oportunidadesConValor = oportunidades.filter((o) => o.valor_total > 0);
@@ -160,6 +168,9 @@ export function TableroVentas({
           <KPICard label="Ticket promedio" valor={formatMXN(kpis.ticket_promedio_mes)} subtexto="Por transacción" />
         </div>
       )}
+
+      {/* ─── Reportes anclados (Fase 16) ──────────────────────────── */}
+      {slotReportesAnclados}
 
       {/* ─── Oportunidades de mayor valor ─────────────────────────── */}
       <SeccionOportunidades

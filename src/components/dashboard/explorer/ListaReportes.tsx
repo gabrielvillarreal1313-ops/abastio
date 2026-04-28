@@ -56,14 +56,16 @@ export function ListaReportes({ reportes, usuarioId }: Props) {
 
   if (reportes.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center">
+      <div className="bg-white rounded-lg border border-gray-200 px-8 py-12 text-center space-y-4">
         <p className="text-sm text-gray-500">
-          No tienes reportes guardados.{' '}
-          <Link href="/dashboard/explorer" className="text-slate-700 hover:text-slate-900 underline">
-            Crea uno desde el Explorer
-          </Link>
-          .
+          Aún no tienes reportes guardados. Ve al Explorer y guarda tu primera vista personalizada.
         </p>
+        <Link
+          href="/dashboard/explorer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-colors"
+        >
+          Ir al Explorer
+        </Link>
       </div>
     );
   }

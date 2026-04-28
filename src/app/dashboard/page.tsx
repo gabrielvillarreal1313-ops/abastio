@@ -8,8 +8,8 @@ import { getAlertasMargen } from '@/lib/queries/alertas-margen';
 import { getResumenOportunidades, getTopClientesOportunidades } from '@/lib/queries/resumen-oportunidades';
 import { getKpisComprador } from '@/lib/queries/kpis-comprador';
 import { getUsuarioActual } from '@/lib/auth/usuario-actual';
-import { getReportesAnclados } from '@/lib/queries/reportes-guardados';
-import { getExplorer } from '@/lib/queries/explorer';
+import { vendedorIdParaFiltrado } from '@/lib/auth/roles';
+import { getReportesAncladosConDatos } from '@/lib/queries/reportes-anclados-con-datos';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { GraficaIngresosMensuales } from '@/components/dashboard/GraficaIngresosMensuales';
 import { TopSKUs } from '@/components/dashboard/TopSKUs';
@@ -43,23 +43,12 @@ export default async function DashboardPage() {
   // Reportes anclados: solo los cargamos si hay usuario. El layout ya garantiza
   // que el Resumen Ejecutivo es visible únicamente para rol `dueno`, así que
   // aquí no duplicamos la verificación — solo protegemos de sesión nula.
-  // Limitamos a los primeros 5 anclados para acotar el número de llamadas a
-  // get_explorer que se disparan en paralelo al render del Resumen.
+  // El dueño no es rep puro, así que el filtrado por vendedor es null.
   let reportesAnclados: ReporteAncladoConDatos[] = [];
   if (usuario) {
-    const anclados = (await getReportesAnclados(usuario.id)).slice(0, 5);
-    reportesAnclados = await Promise.all(
-      anclados.map(async (reporte) => {
-        try {
-          const datos = await getExplorer(
-            reporte.configuracion.dimension,
-            reporte.configuracion.filtros ?? {}
-          );
-          return { reporte, datos };
-        } catch {
-          return { reporte, datos: [] };
-        }
-      })
+    reportesAnclados = await getReportesAncladosConDatos(
+      usuario.id,
+      vendedorIdParaFiltrado(usuario)
     );
   }
 

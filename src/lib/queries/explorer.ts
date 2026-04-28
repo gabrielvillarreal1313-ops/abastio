@@ -5,6 +5,22 @@
  * cualquier dimensión soportada (bodegas, vendedores, clientes, categorías,
  * productos, meses, ciudades) con métricas YTD vs LYTD, deltas, margen bruto,
  * y sparkline mensual. Soporta filtros cruzados para drill-down.
+ *
+ * Filtrado por vendedor (Fase 16):
+ * Cuando `vendedorId` es null/undefined, retorna datos de toda la empresa.
+ * Cuando `vendedorId` tiene valor, retorna solo datos relevantes para ese
+ * vendedor según reglas por dimensión:
+ *  - bodegas: TODAS las bodegas, métricas solo de sus transacciones (las
+ *    bodegas sin actividad del rep aparecen con $0 y sparkline vacía)
+ *  - vendedores: solo su fila
+ *  - clientes: solo clientes a los que ha vendido (en ventana YTD/LYTD)
+ *  - productos: solo productos que ha vendido
+ *  - categorias: solo categorías de productos que ha vendido
+ *  - meses: TODOS los 12 meses, métricas solo de sus transacciones
+ *  - ciudades: solo ciudades de sus clientes
+ *
+ * En V1 esto será configurable por tenant vía `configuracion_empresa`.
+ * Hoy es comportamiento fijo cableado al frontend (regla 18 de CLAUDE.md).
  */
 
 import { supabase } from '@/lib/supabase';
@@ -88,11 +104,13 @@ function parseFila(r: Record<string, unknown>): FilaExplorer {
 
 export async function getExplorer(
   dimension: DimensionExplorer,
-  filtros?: FiltrosExplorer
+  filtros?: FiltrosExplorer,
+  vendedorId?: number | null
 ): Promise<FilaExplorer[]> {
   const { data, error } = await supabase.rpc('get_explorer', {
     p_dimension: dimension,
     p_filtros: filtros ?? {},
+    p_vendedor_id: vendedorId ?? null,
   });
 
   if (error) {

@@ -50,7 +50,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `oportunidades_trabajadas` — acciones del rep sobre oportunidades de clientes. Tipos de acción: `cotizada`, `descartada`, `pospuesta`. Pospuestas tienen `fecha_reaparicion` obligatoria. Opcionalmente linkea a `cotizacion_id`
 
 **Reportes guardados (Fase 13):**
-- `reportes_guardados` — configuraciones de Explorer guardadas por usuario con soporte de ancla al dashboard. Campos: `id` UUID, `usuario_id` FK → usuarios, `nombre`, `descripcion`, `configuracion` JSONB (dimensión + filtros + sort), `anclado` bool, `orden_ancla` integer para ordenar los anclados. Índice parcial `idx_reportes_anclados` sobre `(usuario_id, anclado) WHERE anclado = true` para lecturas rápidas del Resumen Ejecutivo
+- `reportes_guardados` — configuraciones de Explorer guardadas por usuario con soporte de ancla al dashboard. Campos: `id` UUID, `usuario_id` FK → usuarios, `nombre`, `descripcion`, `configuracion` JSONB con `{dimension, filtros, sort_column, sort_direction, vista, grafica}` — los dos últimos campos opcionales agregados en Fase 15: `vista: 'tabla' | 'grafica'` (default `'tabla'` cuando no presente) y `grafica: ConfiguracionGrafica` solo presente cuando `vista === 'grafica'`. Tipos exportados desde `src/lib/queries/reportes-guardados.ts`. `anclado` bool, `orden_ancla` integer para ordenar los anclados. Índice parcial `idx_reportes_anclados` sobre `(usuario_id, anclado) WHERE anclado = true` para lecturas rápidas del Resumen Ejecutivo
 
 **Cache de oportunidades (pre-computado con `refrescar_oportunidades()`):**
 - `oportunidades_recompra_cache` — 3,021 pares cliente-SKU vencidos
@@ -168,7 +168,7 @@ Este archivo se carga automáticamente al inicio de cada sesión de Claude Code.
 - `get_contexto_oportunidad_recompra(p_cliente_id, p_sku)` — sintetiza cadencia + estacionalidad en texto legible para UI. Retorna `texto_cadencia` ("Este cliente compra cada ~N días. Última compra hace M días…"), `texto_estacionalidad` (NULL si el mes actual no tiene patrón), `nivel_urgencia` (`media`/`alta`/`critica` por ratio `dias_retraso / intervalo_promedio`), `regularidad`. Llama internamente a las otras 3 RPCs de la fase
 
 **Explorer (Fase 12):**
-- `get_explorer(p_dimension TEXT, p_filtros JSONB DEFAULT '{}')` — RPC parametrizada única que pivota ventas por cualquier dimensión soportada (`bodegas`, `vendedores`, `clientes`, `categorias`, `productos`, `meses`, `ciudades`) con métricas YTD vs LYTD, deltas absolutos y porcentuales, gross margin del mismo período, y sparkline mensual como JSONB array. `p_filtros` acepta combinaciones de `bodega_id`/`vendedor_id`/`cliente_id`/`categoria`/`sku`/`ciudad` para filtros cruzados. LYTD se corta a la misma fecha del año anterior (`MAX(fecha) - INTERVAL '1 year'`) para comparación justa. `LIMIT 500` como safety net.
+- `get_explorer(p_dimension TEXT, p_filtros JSONB DEFAULT '{}', p_vendedor_id INTEGER DEFAULT NULL)` — RPC parametrizada única que pivota ventas por cualquier dimensión soportada (`bodegas`, `vendedores`, `clientes`, `categorias`, `productos`, `meses`, `ciudades`) con métricas YTD vs LYTD, deltas absolutos y porcentuales, gross margin del mismo período, y sparkline mensual como JSONB array. `p_filtros` acepta combinaciones de `bodega_id`/`vendedor_id`/`cliente_id`/`categoria`/`sku`/`ciudad` para filtros cruzados. Cuando `p_vendedor_id` no es NULL (Fase 16), filtra filas y métricas (incluida sparkline) a transacciones del rep especificado, según reglas por dimensión documentadas en `src/lib/queries/explorer.ts`. Bodegas y Meses garantizan presencia de TODAS las entidades aunque el rep no tenga actividad (con $0). LYTD se corta a la misma fecha del año anterior (`MAX(fecha) - INTERVAL '1 year'`) para comparación justa. `LIMIT 5000` como safety net (subido desde 500 en Checkpoint 7.1 para cubrir segmento target con catálogos de hasta ~3,000 SKUs activos típicos; paginación server-side diferida a V1+ ver BACKLOG).
 
 **Reportes (Fase 13):**
 - `guardar_reporte(p_usuario_id, p_nombre, p_descripcion, p_configuracion)` — inserta un nuevo reporte y retorna su UUID. Valida que `p_nombre` no esté vacío (TRIM) y que `p_configuracion` contenga la llave `dimension`
@@ -246,7 +246,7 @@ Solo usuarios con rol `rep` requieren `vendedor_id` poblado. Los demás lo tiene
 
 17. **RPCs pesadas deben pre-computar en tablas de cache.** Las queries de oportunidades (recompra + cross-sell) tardan 1.5s+ en tiempo real. Se pre-computan en `oportunidades_recompra_cache` y `oportunidades_cross_sell_cache` via `refrescar_oportunidades()`. Las RPCs del dashboard leen del cache (~5ms).
 
-18. **Filtrado por vendedor solo cuando el usuario es rep puro.** Si `roles.length === 1 && roles[0] === 'rep'`, pasar `p_vendedor_id` a las RPCs. Multi-rol siempre ve sin filtro porque tiene perspectiva de empresa. Nunca filtrar basándose en la "vista activa" del selector — esa solo afecta aterrizaje y sidebar.
+18. **Filtrado por vendedor solo cuando el usuario es rep puro.** Si `roles.length === 1 && roles[0] === 'rep'`, pasar `p_vendedor_id` a las RPCs. Multi-rol siempre ve sin filtro porque tiene perspectiva de empresa. Nunca filtrar basándose en la "vista activa" del selector — esa solo afecta aterrizaje y sidebar. RPCs que aplican esta regla: `get_clientes_lista`, `get_lista_oportunidades`, `get_clientes_en_riesgo`, `get_cotizaciones_lista`, `get_kpis_rep_mes`, `get_explorer` (Fase 16). En V1, el comportamiento se hará configurable por tenant vía `configuracion_empresa`.
 
 19. **Formateo de fechas tipo "mes"**: Usar `formatearMesAnio()` de `src/lib/textos/formato.ts`. NO usar `new Date(string).toLocaleDateString()` para strings tipo `"YYYY-MM-DD"` porque JavaScript los interpreta como UTC medianoche, lo que en zona horaria mexicana (UTC-6) retrocede al día anterior y muestra el mes equivocado. Regla general: si el dato representa un mes (no un instante), tratarlo como string y parsearlo, nunca convertirlo a `Date` para formatear.
 
@@ -314,7 +314,7 @@ src/
 │   │   │   ├── nueva/page.tsx  — Wizard de cotización (crear/editar)
 │   │   │   └── [id]/page.tsx   — Detalle de cotización con acciones
 │   │   ├── explorer/
-│   │   │   ├── page.tsx        — Explorer multidimensional (Fase 12, solo dueño)
+│   │   │   ├── page.tsx        — Explorer multidimensional (Fase 12, accesible a los 3 roles desde Fase 16)
 │   │   │   └── loading.tsx     — Skeleton de carga del Explorer
 │   │   └── reportes/
 │   │       ├── page.tsx        — Lista de reportes guardados del usuario (Fase 13)
@@ -398,12 +398,18 @@ src/
 │       │   └── AccionesCotizacion.tsx      — Botones de acción por estado
 │       ├── explorer/
 │       │   ├── ExplorerView.tsx            — Vista multidimensional (Fase 12, tabs + filtros + tabla con sparklines)
-│       │   └── ListaReportes.tsx           — Tabla de reportes guardados con toggle ancla + delete (Fase 13)
+│       │   ├── ListaReportes.tsx           — Tabla de reportes guardados con toggle ancla + delete (Fase 13)
+│       │   ├── ToggleVistaExplorer.tsx     — Segmented control Tabla/Gráfica (Fase 15)
+│       │   ├── BarraConfigGrafica.tsx      — 4 selectores de configuración de gráfica (Fase 15)
+│       │   ├── GraficaExplorer.tsx         — Render de las 5 gráficas en Explorer (Fase 15)
+│       │   └── GraficaCompacta.tsx         — Versión compacta 280px para reportes anclados (Fase 15)
 │       └── ReportesAnclados.tsx            — Secciones compactas de reportes anclados en Resumen Ejecutivo (Fase 13)
 ├── lib/
 │   ├── auth/
-│   │   ├── roles.ts            — Tipos Rol, UsuarioActual + calcularRolPrimario + paginaAterrizajePorRol
+│   │   ├── roles.ts            — Tipos Rol, UsuarioActual + calcularRolPrimario + paginaAterrizajePorRol + esRepPuro + vendedorIdParaFiltrado (Fase 16, regla 18 centralizada)
 │   │   └── usuario-actual.ts   — getUsuarioActual() (server-only, usa supabase-server)
+│   ├── explorer/
+│   │   └── reglas-grafica.ts   — Reglas de validación + sanearConfiguracionGrafica + TIPO_DEFAULT_POR_DIMENSION (Fase 15)
 │   ├── queries/                — 47 archivos, una query por archivo
 │   │   ├── types.ts            — Tipos TS compartidos
 │   │   ├── kpis.ts, ingresos-mensuales.ts, top-skus.ts, deadstock.ts
@@ -435,8 +441,9 @@ src/
 │   │   ├── cadencia-cliente-sku.ts  — Fase 11 (historial + resumen de cadencia con predicción)
 │   │   ├── estacionalidad-cliente-sku.ts  — Fase 11 (12 meses año actual vs año anterior)
 │   │   ├── contexto-oportunidad.ts  — Fase 11 (texto legible + badges de urgencia)
-│   │   ├── explorer.ts  — Fase 12 (RPC parametrizada multidimensional con filtros cruzados)
-│   │   ├── reportes-guardados.ts  — Fase 13 (CRUD de reportes + anclado)
+│   │   ├── explorer.ts  — Fase 12 (RPC parametrizada multidimensional con filtros cruzados; soporta p_vendedor_id desde Fase 16)
+│   │   ├── reportes-guardados.ts  — Fase 13 (CRUD de reportes + anclado; persistencia de vista + grafica desde Fase 15)
+│   │   ├── reportes-anclados-con-datos.ts  — Helper compartido fetch paralelo + degradación silenciosa (Fase 16)
 │   │   └── (todos con paginación defensiva .range() si pueden exceder 1000 filas)
 │   ├── textos/
 │   │   ├── pluralizar.ts       — Concordancia gramatical español
@@ -597,6 +604,8 @@ scripts/seed/                   — Generador de datos sintéticos (9 archivos +
 - Sidebar: nueva entrada "Reportes" al mismo nivel que "Explorer" y "Resumen", solo visible para dueño, posición después de "Explorer"
 - Toasts nuevos: `reporte_guardado`, `reporte_eliminado`, `reporte_anclado`, `reporte_desanclado`
 - Archivos: `src/app/dashboard/reportes/page.tsx`, `src/app/dashboard/reportes/loading.tsx`, `src/components/dashboard/explorer/ListaReportes.tsx`, `src/components/dashboard/ReportesAnclados.tsx`, `src/lib/queries/reportes-guardados.ts`
+- Extensión Fase 15 (completada): El JSONB `configuracion` soporta `vista: 'tabla' | 'grafica'` y `grafica: ConfiguracionGrafica`. Vista Gráfica en Explorer con 5 tipos (barras horizontales/verticales, líneas, área, donut), 8 métricas, Top N configurable (5-50 + Todos con cap a 100, 25 en donut), comparativo YTD vs LYTD condicional. Reglas de validación encapsuladas en `src/lib/explorer/reglas-grafica.ts` con `sanearConfiguracionGrafica` para defensa contra JSONBs malformados. Reportes guardados persisten vista y configuración de gráfica completa. Modal de guardar con dos opciones (sobreescribir / guardar como nuevo) cuando hay reporte cargado. Banner del reporte cargado muestra estado de cambios sin guardar con confirm al descartar. Reportes anclados en Resumen Ejecutivo respetan vista guardada (tabla compacta o gráfica compacta de 280px vía `GraficaCompacta`) con tooltips en labels truncados. Los 3 reportes seedeados de Roberto Gómez migrados a gráfica para demo. Polish completado: tooltips, deshabilitación visual consistente (Top N en Meses), defensa en profundidad, walk-through end-to-end validado.
+- Fase 16 (completada): apertura del Explorer y Reportes a comprador y rep. Los 3 roles tienen acceso a Explorer y Reportes guardados. Para dueño: items al nivel raíz del sidebar (sin cambio). Para comprador y rep: items dentro de grupo nuevo "Análisis" al final del sidebar. Redirects que bloqueaban no-dueños eliminados. Filtrado por vendedor (regla 18) activo en `get_explorer` cuando usuario es rep puro: el rep ve solo sus filas y métricas según reglas por dimensión documentadas en `src/lib/queries/explorer.ts`. Helper `vendedorIdParaFiltrado(usuario)` en `src/lib/auth/roles.ts` centraliza la decisión "es rep puro?". Comprador ve datos completos como dueño. Reportes anclados aparecen en su Tablero respectivo (Tablero de Compras o Tablero de Ventas) reutilizando componente `ReportesAnclados` y helper compartido `getReportesAncladosConDatos`. Sin reportes seedeados para comprador y rep — primera experiencia es lista vacía con empty state que invita a crear desde Explorer.
 
 **Polish final y demo prep (Fase 14):**
 - Identidad visual "Ámbar equilibrado" aplicada en toda la app:

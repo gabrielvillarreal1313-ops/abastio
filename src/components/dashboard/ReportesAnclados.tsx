@@ -16,6 +16,7 @@ import { ClienteLink } from '@/components/ui/ClienteLink';
 import { ProductoLink } from '@/components/ui/ProductoLink';
 import { VendedorLink } from '@/components/ui/VendedorLink';
 import { formatMXNTabla } from '@/lib/textos/formato';
+import { GraficaCompacta } from '@/components/dashboard/explorer/GraficaCompacta';
 
 // ─── Config de display por dimensión ────────────────────────────────────────
 
@@ -69,6 +70,9 @@ function BloqueReporte({
   const dimension = reporte.configuracion.dimension;
   const colLabel = COL_LABEL_POR_DIMENSION[dimension] ?? 'Elemento';
   const filasPreview = datos.slice(0, MAX_FILAS_PREVIEW);
+  // `vista` es undefined en reportes pre-Fase 15 → tratar como tabla.
+  const esGrafica =
+    reporte.configuracion.vista === 'grafica' && reporte.configuracion.grafica;
 
   return (
     <div>
@@ -88,11 +92,17 @@ function BloqueReporte({
         </Link>
       </div>
 
-      {/* Tabla compacta */}
-      {filasPreview.length === 0 ? (
+      {/* Body — gráfica compacta o tabla compacta según vista guardada */}
+      {datos.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 px-6 py-6 text-center">
           <p className="text-sm text-gray-500">Este reporte no tiene datos para mostrar.</p>
         </div>
+      ) : esGrafica && reporte.configuracion.grafica ? (
+        <GraficaCompacta
+          filas={datos}
+          dimension={dimension}
+          configuracion={reporte.configuracion.grafica}
+        />
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">

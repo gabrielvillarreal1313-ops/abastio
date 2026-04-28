@@ -11,11 +11,51 @@ import type { DimensionExplorer, FiltrosExplorer } from '@/lib/queries/explorer'
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
+export type TipoGrafica =
+  | 'barras_horizontales'
+  | 'barras_verticales'
+  | 'lineas'
+  | 'area'
+  | 'donut';
+
+export type MetricaGrafica =
+  | 'ventas_ytd'
+  | 'ventas_lytd'
+  | 'delta_ventas_abs'
+  | 'delta_ventas_pct'
+  | 'gm_ytd'
+  | 'gm_lytd'
+  | 'delta_gm_abs'
+  | 'delta_gm_pct';
+
+export type TopNGrafica = 5 | 10 | 15 | 25 | 50 | 'todos';
+
+/**
+ * Configuración de gráfica para reportes guardados.
+ *
+ * Reglas de validación (aplicadas en UI, no en backend):
+ * - Líneas y Área solo válidas cuando la dimensión del reporte es 'meses'
+ * - Barras horizontales y Donut no válidas en dimensión 'meses'
+ * - Donut solo válida con métricas absolutas (no deltas: delta_ventas_abs, delta_ventas_pct, delta_gm_abs, delta_gm_pct)
+ * - comparar_lytd se fuerza false (y deshabilita en UI) cuando tipo === 'donut' o cuando metrica es delta
+ * - top_n === 'todos' se capa internamente a 100 filas con aviso visual
+ */
+export interface ConfiguracionGrafica {
+  tipo: TipoGrafica;
+  metrica: MetricaGrafica;
+  top_n: TopNGrafica;
+  comparar_lytd: boolean;
+}
+
+export type VistaReporte = 'tabla' | 'grafica';
+
 export interface ConfiguracionReporte {
   dimension: DimensionExplorer;
   filtros: FiltrosExplorer;
   sort_column?: string;
   sort_direction?: 'asc' | 'desc';
+  vista?: VistaReporte;
+  grafica?: ConfiguracionGrafica;
 }
 
 export interface ReporteGuardado {
@@ -31,9 +71,50 @@ export interface ReporteGuardado {
 
 // ─── Parseo defensivo ───────────────────────────────────────────────────────
 
+const TIPOS_GRAFICA: TipoGrafica[] = [
+  'barras_horizontales',
+  'barras_verticales',
+  'lineas',
+  'area',
+  'donut',
+];
+
+const METRICAS_GRAFICA: MetricaGrafica[] = [
+  'ventas_ytd',
+  'ventas_lytd',
+  'delta_ventas_abs',
+  'delta_ventas_pct',
+  'gm_ytd',
+  'gm_lytd',
+  'delta_gm_abs',
+  'delta_gm_pct',
+];
+
+const TOP_N_VALIDOS: TopNGrafica[] = [5, 10, 15, 25, 50, 'todos'];
+
+function parseGrafica(raw: unknown): ConfiguracionGrafica | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const g = raw as Record<string, unknown>;
+  const tipo = TIPOS_GRAFICA.includes(g.tipo as TipoGrafica)
+    ? (g.tipo as TipoGrafica)
+    : 'barras_verticales';
+  const metrica = METRICAS_GRAFICA.includes(g.metrica as MetricaGrafica)
+    ? (g.metrica as MetricaGrafica)
+    : 'ventas_ytd';
+  const topN = TOP_N_VALIDOS.includes(g.top_n as TopNGrafica)
+    ? (g.top_n as TopNGrafica)
+    : 10;
+  return {
+    tipo,
+    metrica,
+    top_n: topN,
+    comparar_lytd: g.comparar_lytd === true || g.comparar_lytd === 'true',
+  };
+}
+
 function parseConfiguracion(raw: unknown): ConfiguracionReporte {
   if (!raw || typeof raw !== 'object') {
-    return { dimension: 'bodegas', filtros: {} };
+    return { dimension: 'bodegas', filtros: {}, vista: 'tabla' };
   }
   const r = raw as Record<string, unknown>;
   const dim = (r.dimension as DimensionExplorer) ?? 'bodegas';
@@ -43,11 +124,16 @@ function parseConfiguracion(raw: unknown): ConfiguracionReporte {
   const sortDir = r.sort_direction === 'asc' || r.sort_direction === 'desc'
     ? (r.sort_direction as 'asc' | 'desc')
     : undefined;
+  // Reportes pre-existentes sin `vista` se interpretan como tabla.
+  const vista: VistaReporte = r.vista === 'grafica' ? 'grafica' : 'tabla';
+  const grafica = vista === 'grafica' ? parseGrafica(r.grafica) : undefined;
   return {
     dimension: dim,
     filtros,
     sort_column: typeof r.sort_column === 'string' ? r.sort_column : undefined,
     sort_direction: sortDir,
+    vista,
+    grafica,
   };
 }
 
